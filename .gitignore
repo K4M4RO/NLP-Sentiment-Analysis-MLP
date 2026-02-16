@@ -1,0 +1,6 @@
+data/
+*.csv
+*.npy
+*.joblib
+__pycache__/
+.venv/
