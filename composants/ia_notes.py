@@ -8,6 +8,9 @@ import pandas as pd
 import numpy as np
 import joblib, os
 
+if torch.cuda.is_available():
+    # Active les cœurs Tensor Cores pour aller beaucoup plus vite (léger sacrifice de précision négligeable)
+    torch.set_float32_matmul_precision('high')
 
 class C: # Classe qui permet d'appliquer de la couleur aux print (pas important)
     VERT = '\033[92m'
@@ -30,8 +33,12 @@ class NotesPredicteur:
         self._y = []
         self._embeddings = []
         self._scaler = StandardScaler()
-        self._modele_bert = SentenceTransformer('all-MiniLM-L6-v2')
         self._dossier_sauvegarde = "data"
+
+        # --- DÉTECTION DU GPU ---
+        self._materiel_calcul = "cuda" if torch.cuda.is_available() else "cpu"
+        self._modele_bert = SentenceTransformer('all-MiniLM-L6-v2', device=self._materiel_calcul)
+
         # Définition du MLP
         self._mlp = MLPRegressor(
             hidden_layer_sizes=(64, 64),  # 2 couches cachées de 64 neurones
@@ -39,15 +46,30 @@ class NotesPredicteur:
             solver='adam',                # Optimiseur Adam
             max_iter=500,                 # Nombre maximal d'itérations
             random_state=42,              # Pour la reproductibilité
-            learning_rate_init=0.001       # Taux d'apprentissage initial
+            learning_rate_init=0.001,     # Taux d'apprentissage initial
+            verbose=True                  # Permet de voir l'évolution de l'erreur à chaque itération
         )
 
-    def charger_data(self,chemin_dataset:str="data/books_data_test.csv") -> None:
+    def charger_data(self,chemin_dataset:str="data/books_rating_500k.csv") -> None:
         df = pd.read_csv(chemin_dataset, sep=",", on_bad_lines='skip')
+        df = df.dropna(subset=["review/text", "review/score"])
+        
+        # --- AJOUT : NETTOYAGE STRICT ---
+        # On s'assure que tout est bien en texte
+        df["review/text"] = df["review/text"].astype(str)
+        
         self._y = df["review/score"].to_numpy()
         self._y = np.array(self._y).reshape(-1, 1)
         self._x = df["review/text"].tolist()
-        print(f"\n{C.VERT}Data chargé !{C.RESET}")
+        
+        print(f"\n{C.BLEU}Données chargées : {len(self._x)} lignes.{C.RESET}")
+        
+        # --- AJOUT : VÉRIFICATION VISUELLE ---
+        print(f"{C.JAUNE}--- VÉRIFICATION ÉCHANTILLON ---{C.RESET}")
+        for i in range(3):
+            print(f"Note: {self._y[i][0]} | Texte: {self._x[i][:50]}...")
+        print(f"{C.JAUNE}----------------------------------{C.RESET}")
+        print("Si un texte positif a une note de 1.0 (ou inversement), le fichier CSV est faux !")
     
     def sauvegarder_embeddings(self, nom_fichier="embeddings.npy"):
         # On sauvegarde le vecteur sémantique car il est long à recalculer
@@ -88,7 +110,8 @@ class NotesPredicteur:
     def calculer_vecteurs_semantiques(self, texte_a_encoder=None) -> None:
         with torch.no_grad():
             if texte_a_encoder is None:
-                self._embeddings = self._modele_bert.encode(self._x, convert_to_numpy=True)
+                taille_batch = 256 if self._materiel_calcul == "cuda" else 32
+                self._embeddings = self._modele_bert.encode(self._x, convert_to_numpy=True, show_progress_bar=True, batch_size=taille_batch)
             else:
                 # Si c'est un texte seul, on le met dans une liste car BERT veut un itérable
                 return self._modele_bert.encode([texte_a_encoder], convert_to_numpy=True)
@@ -101,9 +124,10 @@ class NotesPredicteur:
 
         self._mlp.fit(x_train, y_train_scaled.ravel())
         
-        y_pred = self._mlp.predict(x_test)
-        mse = mean_squared_error(y_test, y_pred)
-        r2 = r2_score(y_test, y_pred)
+        y_pred_scaled = self._mlp.predict(x_test)
+        y_pred_reel = self._scaler.inverse_transform(y_pred_scaled.reshape(-1,1))
+        mse = mean_squared_error(y_test, y_pred_reel)
+        r2 = r2_score(y_test, y_pred_reel)
 
         print(f"\n{C.BLEU}Mean Squared Error: {mse:.4f}")
         print(f"R² Score: {r2:.4f}{C.RESET}")
@@ -120,4 +144,4 @@ class NotesPredicteur:
         note_reelle = self._scaler.inverse_transform(y_pred_scaled.reshape(-1, 1))
         
         # On retourne juste le nombre
-        return float(note_reelle)
+        return float(note_reelle[0][0])
