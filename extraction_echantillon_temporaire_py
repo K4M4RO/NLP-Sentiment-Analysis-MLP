@@ -1,0 +1,47 @@
+import pandas as pd
+import os
+
+# Configuration
+SOURCE = "data/Books_rating.csv"        # Ton gros fichier Kaggle
+DESTINATION = "data/books_data_500k.csv" # Le fichier propre pour l'IA
+NB_LIGNES = 100000                       # Par note (donc x5 au total)
+
+def generer_dataset_equilibre():
+    if not os.path.exists(SOURCE):
+        print(f"❌ Erreur : Impossible de trouver {SOURCE}")
+        return
+
+    print("⏳ Chargement du fichier géant (patience, ça charge 3Go)...")
+    # Astuce : On ne charge QUE les colonnes utiles pour ne pas saturer la RAM
+    df = pd.read_csv(SOURCE, usecols=["review/score", "review/text"])
+    
+    liste_dfs = []
+
+    # Boucle de 1 à 5
+    for note in range(1, 6):
+        print(f"🔎 Extraction des avis 5 étoiles..." if note == 5 else f"🔎 Extraction des avis {note} étoile(s)...")
+        
+        # 1. On filtre
+        df_temp = df[df["review/score"] == note]
+        
+        # 2. On prend 100 000 lignes
+        # .head(N) est comme .iloc[:N] mais plus lisible
+        # Si tu veux du hasard, remplace .head(NB_LIGNES) par .sample(NB_LIGNES)
+        extraction = df_temp.head(NB_LIGNES)
+        
+        liste_dfs.append(extraction)
+        print(f"   ✅ {len(extraction)} lignes récupérées.")
+
+    print("🔄 Fusion et mélange des données...")
+    # 1. On colle tout ensemble
+    df_final = pd.concat(liste_dfs)
+    
+    # 2. On mélange tout (shuffle) pour ne pas avoir les notes triées
+    df_final = df_final.sample(frac=1, random_state=42).reset_index(drop=True)
+
+    print(f"💾 Sauvegarde dans {DESTINATION}...")
+    df_final.to_csv(DESTINATION, index=False)
+    print("🎉 Terminé ! Ton dataset de 500k lignes est prêt.")
+
+if __name__ == "__main__":
+    generer_dataset_equilibre()

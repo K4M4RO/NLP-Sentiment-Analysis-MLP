@@ -47,6 +47,7 @@ class NotesPredicteur:
         self._y = df["review/score"].to_numpy()
         self._y = np.array(self._y).reshape(-1, 1)
         self._x = df["review/text"].tolist()
+        print(f"\n{C.VERT}Data chargé !{C.RESET}")
     
     def sauvegarder_embeddings(self, nom_fichier="embeddings.npy"):
         # On sauvegarde le vecteur sémantique car il est long à recalculer
@@ -55,15 +56,15 @@ class NotesPredicteur:
             os.makedirs(self._dossier_sauvegarde)
         chemin = os.path.join(self._dossier_sauvegarde, nom_fichier)
         np.save(chemin,self._embeddings)
-        print(f"{C.VERT}Embeddings sauvegardé dans {nom_fichier}!{C.RESET}")
+        print(f"\n{C.VERT}Embeddings sauvegardé dans {nom_fichier}!{C.RESET}")
     
     def charger_embeddings(self, nom_fichier="embeddings.npy"):
         chemin = os.path.join(self._dossier_sauvegarde, nom_fichier)
         try:
             self._embeddings = np.load(chemin)
-            print(f"{C.VERT}Embeddings chargé depuis {nom_fichier}!{C.RESET}")
+            print(f"\n{C.VERT}Embeddings chargé depuis {nom_fichier}!{C.RESET}")
         except:
-            print(f"{C.ROUGE}Erreur lors du chargement du embeddings !{C.RESET}")
+            print(f"\n{C.ROUGE}Erreur lors du chargement du embeddings !{C.RESET}")
         
     def sauvegarder_cerveau(self, nom_fichier="ia_notes_sauvegarde.joblib"):
         chemin = os.path.join(self._dossier_sauvegarde, nom_fichier)
@@ -72,7 +73,7 @@ class NotesPredicteur:
             "scaler": self._scaler
         }
         joblib.dump(package,chemin)
-        print(f"{C.VERT}IA sauvegardée dans {nom_fichier} !{C.RESET}")
+        print(f"\n{C.VERT}IA sauvegardée dans {nom_fichier} !{C.RESET}")
     
     def charger_cerveau(self,nom_fichier="ia_notes_sauvegarde.joblib"):
         chemin = os.path.join(self._dossier_sauvegarde,nom_fichier)
@@ -80,9 +81,9 @@ class NotesPredicteur:
             package = joblib.load(chemin)
             self._mlp = package["mlp"]
             self._scaler = package["scaler"]
-            print(f"{C.VERT}Cerveau chargé !{C.RESET}")
+            print(f"\n{C.VERT}Cerveau chargé !{C.RESET}")
         except:
-            print(f"{C.ROUGE}Erreur lors du chargement. Vérifiez que le fichier .joblib existe et qu'il se trouve à la racine{C.RESET}")
+            print(f"\n{C.ROUGE}Erreur lors du chargement. Vérifiez que le fichier .joblib existe et qu'il se trouve à la racine{C.RESET}")
     
     def calculer_vecteurs_semantiques(self, texte_a_encoder=None) -> None:
         with torch.no_grad():
@@ -104,7 +105,7 @@ class NotesPredicteur:
         mse = mean_squared_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
 
-        print(f"{C.BLEU}Mean Squared Error: {mse:.4f}")
+        print(f"\n{C.BLEU}Mean Squared Error: {mse:.4f}")
         print(f"R² Score: {r2:.4f}{C.RESET}")
 
     def predire_score(self, texte_a_predire: str) -> float:
