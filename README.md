@@ -6,11 +6,23 @@ Ce projet implémente un modèle de Machine Learning capable de prédire la note
 
 ## 🛠️ Prérequis
 
+### Installation Standard (CPU)
 Assurez-vous d'avoir installé les bibliothèques suivantes :
 
 ```bash
 pip install torch sentence-transformers scikit-learn pandas numpy joblib
 ```
+
+### 🚀 Accélération GPU (NVIDIA RTX) - Optionnel mais Recommandé
+
+Si vous possédez une carte graphique NVIDIA, le calcul des vecteurs sera **beaucoup plus rapide**. Il faut installer une version spécifique de PyTorch compatible avec CUDA.
+
+Exemple pour CUDA 12.8 (commande à adapter selon votre carte graphique) :
+```bash
+pip3 install torch torchvision --index-url [https://download.pytorch.org/whl/cu128](https://download.pytorch.org/whl/cu128)
+```
+
+> **Note :** La version `cu128` dépend de vos drivers. Vérifiez la commande exacte correspondant à votre matériel sur le site officiel [pytorch.org](https://pytorch.org/get-started/locally/).
 
 ---
 
@@ -66,8 +78,11 @@ print(f"Note estimée : {note:.2f}/5")
 | :--- | :--- |
 | `charger_data(chemin)` | Charge le CSV et prépare les variables `_x` (textes) et `_y` (notes). |
 | `calculer_vecteurs_semantiques()` | Transforme le texte en vecteurs numériques via BERT. |
+| `sauvegarder_embeddings(nom)` | Sauvegarde les vecteurs calculés dans un fichier `.npy` pour gagner du temps. |
+| `charger_embeddings(nom)` | Charge les vecteurs existants depuis un fichier `.npy`. |
 | `lancer_entrainement()` | Divise les données, normalise les cibles et entraîne le MLP. |
-| `sauvegarder_cerveau()` | Enregistre le modèle et le scaler dans un fichier `.joblib`. |
+| `sauvegarder_cerveau(nom)` | Enregistre le modèle et le scaler dans un fichier `.joblib`. |
+| `charger_cerveau(nom)` | Charge un modèle pré-entraîné pour faire des prédictions immédiates. |
 | `predire_score(texte)` | Analyse un texte et renvoie une note flottante entre 1.0 et 5.0. |
 
 ---
