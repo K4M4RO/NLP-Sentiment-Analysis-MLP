@@ -24,9 +24,10 @@ class NotesPredicteur:
     _y: list[str]
     _embeddings: list[list[float]]
     _mlp: object
-    _scaler:object
-    _bert:object
-    _dossier_sauvegarde:str
+    _scaler: object
+    _bert: object
+    _dossier_sauvegarde: str
+    _score_ia: dict[float]
 
     def __init__(self):
         self._x = []
@@ -129,6 +130,7 @@ class NotesPredicteur:
         mse = mean_squared_error(y_test, y_pred_reel)
         r2 = r2_score(y_test, y_pred_reel)
 
+        self._score_ia = {"R2":r2,"Mean Squared Error":mse}
         print(f"\n{C.BLEU}Mean Squared Error: {mse:.4f}")
         print(f"R² Score: {r2:.4f}{C.RESET}")
 
@@ -145,3 +147,12 @@ class NotesPredicteur:
         
         # On retourne juste le nombre
         return float(note_reelle[0][0])
+    
+    def __str__(self) -> str:
+        texte = ""
+
+        for element, resultat in self._score_ia.items():
+            print(f"{element}: {resultat}")
+
+
+
