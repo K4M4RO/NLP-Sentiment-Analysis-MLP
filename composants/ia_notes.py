@@ -152,7 +152,5 @@ class NotesPredicteur:
         texte = ""
 
         for element, resultat in self._score_ia.items():
-            print(f"{element}: {resultat}")
-
-
-
+            texte = texte + f"\n{element}: {resultat}"
+        return texte
