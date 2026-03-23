@@ -93,7 +93,8 @@ class NotesPredicteur:
         chemin = os.path.join(self._dossier_sauvegarde, nom_fichier)
         package = {
             "mlp": self._mlp,
-            "scaler": self._scaler
+            "scaler": self._scaler,
+            "score_ia": self._score_ia
         }
         joblib.dump(package,chemin)
         print(f"\n{C.VERT}IA sauvegardée dans {nom_fichier} !{C.RESET}")
@@ -104,6 +105,7 @@ class NotesPredicteur:
             package = joblib.load(chemin)
             self._mlp = package["mlp"]
             self._scaler = package["scaler"]
+            self._score_ia = package["score_ia"]
             print(f"\n{C.VERT}Cerveau chargé !{C.RESET}")
         except:
             print(f"\n{C.ROUGE}Erreur lors du chargement. Vérifiez que le fichier .joblib existe et qu'il se trouve à la racine{C.RESET}")
@@ -152,5 +154,5 @@ class NotesPredicteur:
         texte = ""
 
         for element, resultat in self._score_ia.items():
-            texte = texte + f"\n{element}: {resultat}"
+            texte = texte + f"{element}: {resultat}"
         return texte
