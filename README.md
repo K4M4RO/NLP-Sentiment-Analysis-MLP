@@ -14,16 +14,40 @@ Une architecture de Machine Learning robuste et complète, spécialisée dans l'
 
 Le pipeline de traitement s'articule autour de quatre strates majeures, optimisant la mémoire et la puissance de calcul sur un volume massif de données (500 000 avis).
 
-### 1. Préparation et Nettoyage des Données (ETL)
+### 1. Préparation et Nettoyage des Données
 
-La robustesse du modèle prédictif reposant sur la qualité du jeu de données, un pipeline ETL rigoureux a été implémenté via le script utilitaire `fouille_donnees.py`. Le jeu de données initial, issu d'une archive brute massive (environ 3 000 000 de lignes), a subi les traitements mathématiques et logiques suivants :
+La robustesse du modèle prédictif reposant sur la qualité du jeu de données, un pipeline rigoureux a été implémenté via le script utilitaire `fouille_donnees.py`. Le jeu de données initial, issu d'une archive brute massive (environ 3 000 000 de lignes), a subi les traitements mathématiques et logiques suivants :
 
 * **Purge des valeurs manquantes :** Élimination systématique des entrées présentant des valeurs nulles (`NaN`) sur l'axe sémantique (`review/text`) ou quantitatif (`review/score`).
 * **Seuillage de consistance statistique :** Filtrage conditionnel garantissant que seuls les ouvrages ou items possédant un corpus minimal strict de 10 avis originaux sont conservés dans le jeu final.
 * **Équidistribution stricte (Balancing) :** Afin de prévenir les biais de prédiction structurels (overfitting sur des classes majoritaires), un sous-échantillonnage aléatoire a été imposé. Le pipeline extrait exactement 100 000 avis pour chaque classe de notation (de 1.0 à 5.0).
 * **Bilan dimensionnel :** Le jeu de données qualifié passe d'un état originel chaotique à un DataFrame parfaitement équilibré de 500 000 enregistrements. Il est persisté localement sous `books_rating_500k_filtre.csv`, offrant une distribution de labels optimale prête pour la phase de vectorisation contextuelle algorithmique.
 
-### 2. Le Cœur du Réacteur (IA & Web)
+### 2. Exécution du Pipeline (Mode CLI)
+
+L'architecture backend (`main.py`) adopte un standard d'interface en ligne de commande (CLI) industriel via le module `argparse`. Cette conception modulaire autorise le partitionnement du temps de calcul selon la phase d'expérimentation en cours.
+
+**Arguments de compilation et de lancement (Flags) :**
+
+* `--pipeline` : Facteur de déclenchement d'un cycle systémique de bout en bout (A à Z). Engage la phase de lecture Big Data, la vectorisation CUDA sous BERT, la persistance matricielle des embeddings, le Model Selection sur réseau neuronal, l'arrêt par Early Stopping, et l'extrusion finale de la projection UMAP.
+* `--train` : Flag de re-compilation de la fonction de perte limitant l'exécution à la création d'architectures MLP. Ce paramètre court-circuite le lourd process d'encodage asynchrone BERT en récupérant directement les matrices pré-calculées sur disque (`.npy`).
+* `--project` : Flag de dérivation analytique isolant le moteur d'apprentissage (MLP). Dédié iniquement au recalcul brut des matrices de coordonnées UMAP/ACP destinées au Dashboard interactif en cas d'ajustement du voisinage statistique.
+* `--predict [TEXTE]` : Option d'inférence à froid. Engage le re-chargement exclusif du modèle optimisé en RAM (`.joblib`) afin d'évaluer instantanément la chaîne de caractères et de retourner sa régression et sa classe de polarité dans les flux standards du terminal.
+
+**Exemples conjoints de cycle d'utilisation :**
+
+Exécuter une refonte totale de l'entraînement des poids du modèle en se reposant sur les dimensions déjà persistées :
+```bash
+python main.py --train
+```
+
+Profiler une chaîne non étiquetée directement depuis l'invite de commande (CLI Inférence) :
+```bash
+python main.py --predict "The pacing of this novel is undeniably slow, yet intellectually rewarding."
+```
+
+
+### 3. Le Cœur du Réacteur (IA & Web)
 
 * **Vectorisation Sémantique (BERT) :** Passage du texte brut à un espace vectoriel dense via le modèle `all-mpnet-base-v2` (SentenceTransformers).
 * **Modélisation Neuronale (MLP) :** Régression supervisée avec sélection d'architecture dynamique (Early Stopping sur architecture multiniveaux `128-64-32`).
@@ -122,26 +146,3 @@ python app.py
 *Le tableau de bord sera instantanément accessible depuis votre navigateur via l'adresse standard `http://127.0.0.1:8050/`.*
 
 ---
-
-### Exécution du Pipeline (Mode CLI)
-
-L'architecture backend (`main.py`) adopte un standard d'interface en ligne de commande (CLI) industriel via le module `argparse`. Cette conception modulaire autorise le partitionnement du temps de calcul selon la phase d'expérimentation en cours.
-
-**Arguments de compilation et de lancement (Flags) :**
-
-* `--pipeline` : Facteur de déclenchement d'un cycle systémique de bout en bout (A à Z). Engage la phase de lecture Big Data, la vectorisation CUDA sous BERT, la persistance matricielle des embeddings, le Model Selection sur réseau neuronal, l'arrêt par Early Stopping, et l'extrusion finale de la projection UMAP.
-* `--train` : Flag de re-compilation de la fonction de perte limitant l'exécution à la création d'architectures MLP. Ce paramètre court-circuite le lourd process d'encodage asynchrone BERT en récupérant directement les matrices pré-calculées sur disque (`.npy`).
-* `--project` : Flag de dérivation analytique isolant le moteur d'apprentissage (MLP). Dédié iniquement au recalcul brut des matrices de coordonnées UMAP/ACP destinées au Dashboard interactif en cas d'ajustement du voisinage statistique.
-* `--predict [TEXTE]` : Option d'inférence à froid. Engage le re-chargement exclusif du modèle optimisé en RAM (`.joblib`) afin d'évaluer instantanément la chaîne de caractères et de retourner sa régression et sa classe de polarité dans les flux standards du terminal.
-
-**Exemples conjoints de cycle d'utilisation :**
-
-Exécuter une refonte totale de l'entraînement des poids du modèle en se reposant sur les dimensions déjà persistées :
-```bash
-python main.py --train
-```
-
-Profiler une chaîne non étiquetée directement depuis l'invite de commande (CLI Inférence) :
-```bash
-python main.py --predict "The pacing of this novel is undeniably slow, yet intellectually rewarding."
-```
