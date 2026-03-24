@@ -1,4 +1,17 @@
-*.csv
-*.npy
+# Caches et environnements virtuels
 __pycache__/
 .venv/
+venv/
+env/
+
+# 1. Ignorer TOUS les gros fichiers de données par défaut (pour bloquer les Go de données)
+*.csv
+*.npy
+
+# 2. EXCEPTIONS : Les petits fichiers vitaux pour l'onglet 2 (Cartographie UMAP)
+!data/umap_coords_dash.npy
+!data/umap_y_vrai_dash.npy
+
+# Note : Le fichier ia_notes_sauvegarde.joblib (2 Mo) passera automatiquement 
+# car on n'a pas bloqué les .joblib. C'est parfait car il est indispensable 
+# pour faire fonctionner l'onglet 1 (Interface de Test) sans devoir réentraîner l'IA.
