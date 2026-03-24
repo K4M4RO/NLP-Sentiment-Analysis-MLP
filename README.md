@@ -85,9 +85,12 @@ L'interface analytique Dash a été conçue sur une architecture technique "SaaS
    
    ![Capture Interface de Test](assets/test.png)
 
-2. **Cartographie Sémantique UMAP :** Un graphique Plotly restituant l'espace vectoriel d'un panel de documents et la séparabilité des matrices de notes. Parfaitement fluide sur un échantillon optimisé de 3 000 avis, les points réagissent au survol intelligent (Hover) pour dévoiler le contenu textuel exact ayant placé l'avis dans sa grappe vectorielle correspondante.
+2. **Cartographie Sémantique UMAP :** Un graphique Plotly restituant l'espace vectoriel d'un panel de documents et la séparabilité des matrices de notes. Parfaitement fluide sur un échantillon optimisé de 3 000 avis.
    
    ![Capture Cartographie UMAP](assets/umap.png)
+
+    Les points réagissent au survol intelligent (Hover) pour dévoiler le contenu textuel exact ayant placé l'avis dans sa grappe vectorielle correspondante.
+   ![Capture Rapport Performance](assets/perf2.png)
 
 3. **Rapport de Performance :** Panneau de métriques quantitatives (R² Score sur les données de test, taille du réseau retenu, matrice de confusion finale) et un score technique général F1 pondéré validé à `0.81`.
 
