@@ -89,14 +89,20 @@ def get_umap_figure(range_notes=[1, 5]):
         mask = (df_umap_global['Note'] >= range_notes[0]) & (df_umap_global['Note'] <= range_notes[1])
         df_filtered = df_umap_global[mask]
         
-        # 2. Sous-échantillonnage strict à 3000 points
-        n_samples = min(3000, len(df_filtered))
-        if n_samples > 0:
-            df_plot = df_filtered.sample(n=n_samples, random_state=42)
+        # 2. Échantillonnage stratifié strict (300 par note, total max 1500)
+        df_plot_list = []
+        for note in df_filtered['Note'].unique():
+            df_note = df_filtered[df_filtered['Note'] == note]
+            n_samples = min(300, len(df_note))
+            if n_samples > 0:
+                df_plot_list.append(df_note.sample(n=n_samples, random_state=42))
+        
+        if df_plot_list:
+            df_plot = pd.concat(df_plot_list)
         else:
             df_plot = df_filtered
         
-        # 3. Chargement contextuel des textes d'avis (HOVER)
+        # 3. Chargement contextuel des textes d'avis (HOVER & CLICK)
         if os.path.exists(chemin_csv) and len(df_plot) > 0:
             try:
                 indices_echantillon = set(df_plot.index.tolist())
@@ -112,13 +118,16 @@ def get_umap_figure(range_notes=[1, 5]):
                 df_textes.index = sorted(list(indices_echantillon))
                 df_plot = df_plot.join(df_textes[[col_texte]])
                 
-                # Troncature du texte à 100 caractères
-                df_plot['Avis'] = df_plot[col_texte].astype(str).str[:100] + "..."
+                # Sauvegarde du texte complet (Click) et Troncature à 100 char (Hover)
+                df_plot['Avis Complet'] = df_plot[col_texte].astype(str)
+                df_plot['Avis'] = df_plot['Avis Complet'].apply(lambda x: x[:100] + "..." if len(x) > 100 else x)
             except Exception as e:
                 print("Avertissement Info Bulle:", e)
                 df_plot['Avis'] = "Texte non disponible"
+                df_plot['Avis Complet'] = "Texte non disponible"
         else:
             df_plot['Avis'] = "Texte non disponible"
+            df_plot['Avis Complet'] = "Texte non disponible"
 
         # 4. Tracé avec Plasma et nouveau hover contextuel
         fig = px.scatter(
@@ -126,7 +135,8 @@ def get_umap_figure(range_notes=[1, 5]):
             color='Note', 
             color_continuous_scale=px.colors.sequential.Plasma,
             title=f"Cartographie Sémantique ({len(df_plot)} avis échantillonnés)",
-            hover_data={'UMAP 1': False, 'UMAP 2': False, 'Note': True, 'Avis': True}
+            hover_data={'UMAP 1': False, 'UMAP 2': False, 'Note': True, 'Avis': True},
+            custom_data=['Avis Complet']
         )
         
         # 5. Optimisation visuelle brillante (taille: 5, opacité: 0.8)
@@ -218,6 +228,22 @@ tab2_content = dbc.CardBody([
            
     # Le graphique + Activation de l'outillage de Zoom/Box (displayModeBar: True)
     dcc.Graph(id='umap-graph', figure=get_umap_figure(), config={'displayModeBar': True}),
+    
+    # Zone de lecture (Avis Complet) rattachée au graphique
+    html.Div(
+        id='avis-complet-output',
+        children="Cliquez sur un point de la cartographie pour lire l'avis complet ici.",
+        style={
+            "backgroundColor": "#1a1a1a",
+            "color": "#ecf0f1",
+            "padding": "15px",
+            "borderRadius": "8px",
+            "border": "1px solid #444",
+            "marginTop": "15px",
+            "fontSize": "0.95rem",
+            "fontStyle": "italic"
+        }
+    ),
     
     html.Div([
         html.H6("Filtrer par tranche de notes :", className="text-light mt-4 mb-3", style={"fontSize": "0.9rem"}),
@@ -347,6 +373,28 @@ def update_umap_graph(range_val):
     if range_val is None:
         return dash.no_update
     return get_umap_figure(range_val)
+
+@app.callback(
+    Output('avis-complet-output', 'children'),
+    Input('umap-graph', 'clickData')
+)
+def display_click_data(clickData):
+    if clickData is None:
+        return "Cliquez sur un point de la cartographie pour lire l'avis complet ici."
+    
+    try:
+        texte_complet = clickData['points'][0]['customdata'][0]
+        # Si le point cliqué porte une mention "Texte non disponible", on modifie le rendu
+        if texte_complet == "Texte non disponible":
+            return html.Div("Le texte complet pour cet avis est indisponible (CSV introuvable).", style={"color": "#e74c3c"})
+            
+        return html.Div([
+            html.Strong("Avis Sélectionné :", style={"color": "#3498db"}),
+            html.Br(), html.Br(),
+            html.Span(texte_complet, style={"fontStyle": "normal", "lineHeight": "1.5"})
+        ])
+    except Exception as e:
+        return f"Erreur système lors du chargement détaillé : {str(e)}"
 
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
