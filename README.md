@@ -119,7 +119,11 @@ Le système charge (hover contextual engine) l'extrait d'avis unique rattaché �
 ![Capture Hover Text UMAP](assets/perf2.png)
 
 ### 3. Rapport de Forme (Metrics)
-Ce troisième panneau monitorise formellement l'intégrité logistique de notre Cerveau final, restituant l'architecture employée (MLP `128-64-32`), la forme structurelle de sa matrice de confusion, et notre score technique général, validé à un fier score d'entraînement **F1 pondéré de `0.81`**.
+Ce troisième panneau monitorise formellement l'intégrité logistique de notre modèle final en l'évaluant de manière impartiale sur un **jeu de données de TEST** (20% du corpus originel), rigoureusement isolé et jamais exploré durant l'entraînement. 
+
+Le dashboard restitue l'architecture finale retenue (MLP `128-64-32`), la matrice de classification binaire, et nos métriques de l'évaluation finale : un solide **score de performance F1 pondéré de `0.81`** couplé à une variance expliquée illustrée par un **$R^2$ de `0.6615`**.
+
+Il est primordial de spécifier que l'architecture respecte strictement la séparation hermétique des trois ensembles en Data Science : l'apprentissage ciblé sur l'ensemble de révision (Train), une régulation dynamique des surajustements (Early Stopping) via un sous-ensemble interne de **Validation**, et enfin, l'extraction de ces compteurs de performance impartiaux via l'ensemble de **Test**.
 
 ![Capture Rapport Performance](assets/perf.png)
 
