@@ -90,13 +90,13 @@ Trois approches distinctes ont été systématiquement modélisées et comparée
 
 ### 3.2. Prouesse Cognitive : Comprendre le Sarcasme
 
-Notre solution hybride `BERT + MLP` s'est imposée pour une seule et unique force : sa capacité à percevoir les inflexions d'ironie grâce au **contexte**.
+Notre solution `BERT + MLP` s'est imposée pour une seule et unique force : sa capacité à percevoir les inflexions d'ironie grâce au **contexte**.
 Afin de valider cette qualité, nous lui avons confronté un piège antagoniste lourdement usité par les lecteurs mécontents américains :
 
-* **Input (Texte soumis à l'API) :** *"this is a masterpiece of bullshit"*
+* **Input (Texte soumis) :** *"this is a masterpiece of bullshit"*
 * **Prédiction algorithmique :** `1.10 / 5.0` (Classification Terminale : Inintéressant)
 
-L'IA n'est absolument pas tombée dans le piège de la locution très positive "masterpiece" (chef-d'œuvre). Le calcul d'attention a lié ce mot au blasphème cynique "*bullshit*", justifiant le sarcasme et pulvérisant ainsi formellement la note.
+L'IA n'est absolument pas tombée dans le piège de la locution très positive "masterpiece". Le calcul d'attention a lié ce mot au blasphème cynique "*bullshit*", justifiant le sarcasme et pulvérisant ainsi formellement la note.
 
 ---
 
@@ -122,6 +122,10 @@ Le système charge (hover contextual engine) l'extrait d'avis unique rattaché �
 Ce troisième panneau monitorise formellement l'intégrité logistique de notre Cerveau final, restituant l'architecture employée (MLP `128-64-32`), la forme structurelle de sa matrice de confusion, et notre score technique général, validé à un fier score d'entraînement **F1 pondéré de `0.81`**.
 
 ![Capture Rapport Performance](assets/perf.png)
+
+Explication de la matrice de confusion :
+
+![Capture Matrice de Confusion](assets/matrice_confusion.png)
 
 ---
 
