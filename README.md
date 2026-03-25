@@ -50,10 +50,10 @@ La robustesse du modèle prédictif reposant sur la qualité du jeu de données,
 
 L'architecture s'exécute depuis une interface en ligne de commande (CLI) via le module `argparse` de Python.
 
-* **Mode Complet (`--pipeline`) :** Orchestre de A à Z : lecture Big Data, vectorisation CUDA (`sentence-transformers`), sauvegarde des tenseurs en `.npy`, Model Selection, et projection UMAP.
-* **Mode Économique (`--train`) :** Court-circuite l'encodage BERT très lourd en récupérant les matrices sur disque, forçant uniquement l'entraînement du réseau neuronal.
-* **Mode Graphique (`--project`) :** Recalcule de façon dynamique les matrices spatiales UMAP via l'algorithme des `cosine similarity` à destination du dashboard interactif.
-* **Mode Inférence (`--predict [TEXTE]`) :** Engage le modèle `joblib` mis en cache pour évaluer et classer instantanément la chaîne de caractères sur la sortie standard du terminal.
+* `--pipeline` : Facteur de déclenchement d'un cycle systémique de bout en bout (A à Z). Engage la phase de lecture Big Data, la vectorisation CUDA sous BERT, la persistance matricielle des embeddings, le Model Selection sur réseau neuronal, l'arrêt par Early Stopping, et l'extrusion finale de la projection UMAP.
+* `--train` : Flag de re-compilation de la fonction de perte limitant l'exécution à la création d'architectures MLP. Ce paramètre court-circuite le lourd process d'encodage asynchrone BERT en récupérant directement les matrices pré-calculées sur disque (`.npy`).
+* `--project` : Flag de dérivation analytique isolant le moteur d'apprentissage (MLP). Dédié iniquement au recalcul brut des matrices de coordonnées UMAP/ACP destinées au Dashboard interactif en cas d'ajustement du voisinage statistique.
+* `--predict [TEXTE]` : Option d'inférence à froid. Engage le re-chargement exclusif du modèle optimisé en RAM (`.joblib`) afin d'évaluer instantanément la chaîne de caractères et de retourner sa régression et sa classe de polarité dans les flux standards du terminal.
 
 ```bash
 # Exemple de commande d'Inférence Terminale :
