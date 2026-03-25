@@ -10,81 +10,13 @@ Une architecture de Machine Learning robuste et complète, spécialisée dans l'
 
 ---
 
-## Architecture du Projet
+## 1. Vue d'Ensemble de l'Architecture
 
 Le pipeline de traitement s'articule autour de quatre strates majeures, optimisant la mémoire et la puissance de calcul sur un volume massif de données (500 000 avis).
 
-### 1. Préparation et Nettoyage des Données
+### 1.1. Structure du Projet
 
-La robustesse du modèle prédictif reposant sur la qualité du jeu de données, un pipeline rigoureux a été implémenté via le script utilitaire `fouille_donnees.py`. Le jeu de données initial, issu d'une archive brute massive (environ 3 000 000 de lignes), a subi les traitements mathématiques et logiques suivants :
-
-* **Purge des valeurs manquantes :** Élimination systématique des entrées présentant des valeurs nulles (`NaN`) sur l'axe sémantique (`review/text`) ou quantitatif (`review/score`).
-* **Seuillage de consistance statistique :** Filtrage conditionnel garantissant que seuls les ouvrages ou items possédant un corpus minimal strict de 10 avis originaux sont conservés dans le jeu final.
-* **Équidistribution stricte (Balancing) :** Afin de prévenir les biais de prédiction structurels (overfitting sur des classes majoritaires), un sous-échantillonnage aléatoire a été imposé. Le pipeline extrait exactement 100 000 avis pour chaque classe de notation (de 1.0 à 5.0).
-* **Bilan dimensionnel :** Le jeu de données qualifié passe d'un état originel chaotique à un DataFrame parfaitement équilibré de 500 000 enregistrements. Il est persisté localement sous `books_rating_500k_filtre.csv`, offrant une distribution de labels optimale prête pour la phase de vectorisation contextuelle algorithmique.
-
-### 2. Exécution du Pipeline (Mode CLI)
-
-L'architecture backend (`main.py`) adopte un standard d'interface en ligne de commande (CLI) industriel via le module `argparse`. Cette conception modulaire autorise le partitionnement du temps de calcul selon la phase d'expérimentation en cours.
-
-**Arguments de compilation et de lancement (Flags) :**
-
-* `--pipeline` : Facteur de déclenchement d'un cycle systémique de bout en bout (A à Z). Engage la phase de lecture Big Data, la vectorisation CUDA sous BERT, la persistance matricielle des embeddings, le Model Selection sur réseau neuronal, l'arrêt par Early Stopping, et l'extrusion finale de la projection UMAP.
-* `--train` : Flag de re-compilation de la fonction de perte limitant l'exécution à la création d'architectures MLP. Ce paramètre court-circuite le lourd process d'encodage asynchrone BERT en récupérant directement les matrices pré-calculées sur disque (`.npy`).
-* `--project` : Flag de dérivation analytique isolant le moteur d'apprentissage (MLP). Dédié iniquement au recalcul brut des matrices de coordonnées UMAP/ACP destinées au Dashboard interactif en cas d'ajustement du voisinage statistique.
-* `--predict [TEXTE]` : Option d'inférence à froid. Engage le re-chargement exclusif du modèle optimisé en RAM (`.joblib`) afin d'évaluer instantanément la chaîne de caractères et de retourner sa régression et sa classe de polarité dans les flux standards du terminal.
-
-**Exemples conjoints de cycle d'utilisation :**
-
-Exécuter une refonte totale de l'entraînement des poids du modèle en se reposant sur les dimensions déjà persistées :
-```bash
-python main.py --train
-```
-
-Profiler une chaîne non étiquetée directement depuis l'invite de commande (CLI Inférence) :
-```bash
-python main.py --predict "The pacing of this novel is undeniably slow, yet intellectually rewarding."
-```
-
-
-### 3. Le Cœur du Réacteur (IA & Web)
-
-* **Vectorisation Sémantique (BERT) :** Passage du texte brut à un espace vectoriel dense via le modèle `all-mpnet-base-v2` (SentenceTransformers).
-* **Modélisation Neuronale (MLP) :** Régression supervisée avec sélection d'architecture dynamique (Early Stopping sur architecture multiniveaux `128-64-32`).
-* **Déploiement Web (Dash/Plotly) :** Restitution visuelle et fonctionnelle, couplant une capacité d'inférence en temps réel à une topologie sémantique projetée par algorithme UMAP.
-
----
-
-## Exécution du Pipeline (Logs du Terminal)
-
-L'entraînement du modèle, de par sa nature computationnelle intensive, a été découpé et sécurisé par batches. L'utilisation d'une accélération matérielle (Tensor Cores / CUDA) est particulièrement visible et contrôlée au sein de nos barres de progression système. 
-
-**Encodage Vectoriel par le modèle BERT :**
-```text
-Encodage BERT:  20%|███████████▏ | 396/1954 [11:01<42:58,  1.65s/batch]
-```
-
-**Optimisation du Réseau de Neurones Multicouche :**
-```text
-Epochs completed:  50%| ████████████████████████████████████▌                                      100/200 [02:03]completed  100  /  200 epochs
-```
-
----
-
-## Test d'Intelligence & Sarcasme
-
-L'usage d'un modèle d'attention (Transformers) confère à notre réseau une compréhension contextuelle profonde de la phrase, surpassant les traditionnelles approches statistiques naïves. 
-
-Afin d'éprouver le réseau au-delà de sa boucle d'apprentissage, nous avons simulé un cas complexe mixant antagonisme et polarité extrême :
-* **Input (Texte soumis) :** *"this is a masterpiece of bullshit"*
-* **Résultat de l'IA (Note prédite) :** `1.10 / 5.0` (Classification : Inintéressant)
-
-**Explication de la prédiction :** 
-Malgré la détection évidente du terme fortement valorisant *"masterpiece"* (chef-d'œuvre), le modèle n'est pas tombé dans le piège de la notation lexicale. Il a pu mesurer précisément la relation d'inversion sémantique infligée par la vulgarité ironique *"bullshit"*, saisissant ainsi le contexte purement sarcastique de la phrase pour la pénaliser et l'aligner à près de 1/5.
-
----
-
-## Structure du Projet
+L'arborescence illustre la séparation stricte entre le front-end asynchrone, le backend algorithmique (CLI) et les données compilées.
 
 ```text
 Projet-S4/
@@ -101,48 +33,116 @@ Projet-S4/
 
 ---
 
-## Le Dashboard Interactif (Web UI)
+## 2. Le Pipeline Data & IA (Backend)
 
-L'interface analytique Dash a été conçue sur une architecture technique "SaaS", axée sur trois panneaux opérationnels sans rechargement de page.
+Le cœur du projet repose sur un pipeline de type ETL (Extraction, Transformation, Load) qui alimente directement notre modèle de Machine Learning et ses projections graphiques.
 
-1. **Interface de Test :** Une ligne de commande de texte dynamique permettant l'inférence de manière interactive. Chaque avis saisi passe dans le conduit BERT avant que le Cerveau (MLP joblib) n'émette une évaluation à chaud.
-   
-   ![Capture Interface de Test](assets/test.png)
+### 2.1. Préparation et Nettoyage des Données
 
-2. **Cartographie Sémantique UMAP :** Un graphique Plotly restituant l'espace vectoriel d'un panel de documents et la séparabilité des matrices de notes. Parfaitement fluide sur un échantillon optimisé de 3 000 avis.
-   
-   ![Capture Cartographie UMAP](assets/umap.png)
+La robustesse du modèle prédictif reposant sur la qualité du jeu de données, un pipeline rigoureux a été implémenté via le script utilitaire `fouille_donnees.py`. Le jeu de données initial, issu d'une archive brute (environ 3 000 000 de lignes), a subi les traitements suivants :
 
-    Les points réagissent au survol intelligent (Hover) pour dévoiler le contenu textuel exact ayant placé l'avis dans sa grappe vectorielle correspondante.
-   ![Capture Rapport Performance](assets/perf2.png)
+* **Purge analytique :** Élimination systématique des entrées présentant des valeurs nulles (`NaN`) sur l'axe sémantique (`review/text`) ou quantitatif (`review/score`).
+* **Seuillage de consistance :** Filtrage conditionnel garantissant que seuls les ouvrages possédant un corpus minimal strict de 10 avis originaux sont conservés.
+* **Balancing strict par quotas :** Afin de prévenir l'overfitting structurel sur des classes majoritaires, un sous-échantillonnage a été imposé (extraction exacte de 100 000 avis par note, de 1.0 à 5.0).
+* **Bilan dimensionnel final :** Le tenseur de données optimal généré, équilibré à **500 000 enregistrements**, est persisté sous le fichier local `books_rating_500k_filtre.csv`.
 
-3. **Rapport de Performance :** Panneau de métriques quantitatives (R² Score sur les données de test, taille du réseau retenu, matrice de confusion finale) et un score technique général F1 pondéré validé à `0.81`.
+### 2.2. Mode CLI : Exécution Modulaire (`main.py`)
 
-   ![Capture Rapport Performance](assets/perf.png)
+L'architecture s'exécute depuis une interface en ligne de commande (CLI) via le module `argparse` de Python.
+
+* **Mode Complet (`--pipeline`) :** Orchestre de A à Z : lecture Big Data, vectorisation CUDA (`sentence-transformers`), sauvegarde des tenseurs en `.npy`, Model Selection, et projection UMAP.
+* **Mode Économique (`--train`) :** Court-circuite l'encodage BERT très lourd en récupérant les matrices sur disque, forçant uniquement l'entraînement du réseau neuronal.
+* **Mode Graphique (`--project`) :** Recalcule de façon dynamique les matrices spatiales UMAP via l'algorithme des `cosine similarity` à destination du dashboard interactif.
+* **Mode Inférence (`--predict [TEXTE]`) :** Engage le modèle `joblib` mis en cache pour évaluer et classer instantanément la chaîne de caractères sur la sortie standard du terminal.
+
+```bash
+# Exemple de commande d'Inférence Terminale :
+python main.py --predict "The pacing of this novel is undeniably slow, yet intellectually rewarding."
+```
+
+### 2.3. Logs d'Exécution et Accélération Matérielle
+
+La sécurité et la vitesse de compilation de notre modèle sont surveillées par batches (lots isolés).
+
+**Moteur Tensoriel NLP (BERT) :**
+```text
+Encodage BERT:  20%|███████████▏ | 396/1954 [11:01<42:58,  1.65s/batch]
+```
+
+**Apprentissage Profond et Rétropropagation (MLP) :**
+```text
+Epochs completed:  50%| ████████████████████████████████████▌                                      100/200 [02:03]completed  100  /  200 epochs
+```
 
 ---
 
-## Prérequis Système
+## 3. Benchmark & Sélection de Modèle
 
-- **Python 3.9+** (l'utilisation d'un environnement virtuel est vivement recommandée).
+Dans une démarche de rigueur scientifique, l'architecture finale du projet n'a été validée qu'à l'issue d'une phase d'expérimentation confrontant plusieurs paradigmes.
 
-> **⚠️ Avertissement de Data Lifecycle :**
-> En raison des limites systématiques de GitHub concernant l'upload de fichiers excédant 100 Mo, le fichier CSV natif de Big Data (`books_rating_500k_filtre.csv`) n'est pas instancié dans ce dépôt public.
-> L'onglet et les calculs frontaux de UMAP fonctionneront infailliblement grâce aux projections topologiques allégées du répertoire (`.npy`). Cependant, notez que **l'affichage dynamique des extraits textuels de l'avis lors du survol de la souris (Hover)** exigera formellement la présence débloquée du CSV originel déposé arbitrairement dans votre dossier local `data/`.
+### 3.1. Analyse Comparative des Approches
+
+Trois approches distinctes ont été systématiquement modélisées et comparées sur le corpus :
+
+1. **Baseline Linéaire (Régression Logistique) :** Exploitée comme modèle de référence via une vectorisation `TF-IDF`. Bien qu'excessivement rapide, son paradigme "bag-of-words", omettant la séquentialité et l'ordre des mots, bride drastiquement ses prédictions syntaxiques.
+2. **Modèle Ensembliste (Random Forest) :** L'arbre décisionnel a isolé intelligemment certaines relations non linéaires. Cependant, cette architecture peine intrinsèquement à traiter la grande dimensionnalité et la complexité brute du langage sans risquer un overfitting massif.
+3. **Le Gagnant (BERT + MLP) :** La combinaison d'un encodage vectoriel fin via mécanisme d'attention (modèle `all-mpnet-base-v2` / `sentence-transformers`) couplé à une régression dense multi-couches (Perceptron `128-64-32`).
+
+### 3.2. Prouesse Cognitive : Comprendre le Sarcasme
+
+Notre solution hybride `BERT + MLP` s'est imposée pour une seule et unique force : sa capacité à percevoir les inflexions d'ironie grâce au **contexte**.
+Afin de valider cette qualité, nous lui avons confronté un piège antagoniste lourdement usité par les lecteurs mécontents américains :
+
+* **Input (Texte soumis à l'API) :** *"this is a masterpiece of bullshit"*
+* **Prédiction algorithmique :** `1.10 / 5.0` (Classification Terminale : Inintéressant)
+
+L'IA n'est absolument pas tombée dans le piège de la locution très positive "masterpiece" (chef-d'œuvre). Le calcul d'attention a lié ce mot au blasphème cynique "*bullshit*", justifiant le sarcasme et pulvérisant ainsi formellement la note.
 
 ---
 
-## Installation et Lancement
+## 4. Le Dashboard Interactif (Web UI)
 
-1. Installez l'ensemble des dépendances spécifiques via le gestionnaire de paquets :
+La restitution de ce modèle prend vie dans l'application Analytics `app.py`. Propulsée par le framework `dash`, cette application SaaS multi-onglets réactive traite les flux graphiques au format `plotly.express` sans rechargement de page.
+
+### 1. Interface de Test Dynamique
+Une ligne de commande textuelle autorise les visiteurs à injecter leur propre texte. Son passage par le conduit BERT puis l'arborescence MLP pré-entraînée (`joblib`) génèrent l'estimation sur l'instant.
+
+![Capture Interface de Test](assets/test.png)
+
+### 2. Cartographie Sémantique UMAP Interactive
+En exploitant les descripteurs sous-dimensionnés générés par `.npy` (en amont), 3 000 vecteurs se matérialisent en constellation bi-dimensionnelle de manière hautement fluide. Les éléments (scatter points) réagissent avec intensité au survol chirurgical de la souris.
+
+![Capture Cartographie UMAP](assets/umap.png)
+
+Le système charge (hover contextual engine) l'extrait d'avis unique rattaché à son nœud gravitationnel, illuminant physiquement les clusters formés par le modèle.
+
+![Capture Hover Text UMAP](assets/perf2.png)
+
+### 3. Rapport de Forme (Metrics)
+Ce troisième panneau monitorise formellement l'intégrité logistique de notre Cerveau final, restituant l'architecture employée (MLP `128-64-32`), la forme structurelle de sa matrice de confusion, et notre score technique général, validé à un fier score d'entraînement **F1 pondéré de `0.81`**.
+
+![Capture Rapport Performance](assets/perf.png)
+
+---
+
+## 5. Prérequis Système et Déploiement
+
+### 5.1. Spécifications du Lifecycle Data (Avertissement)
+
+> **⚠️ Avertissement Système (Git LFS) :** 
+> En raison des limites strictes de GitHub sur les documents dépassant `100 Mo`, l'archive matricielle source `books_rating_500k_filtre.csv` ne siège pas sur ce dépôt. Les serveurs Dashboard UMAP fonctionneront malgré tout sous `numpy` (`.npy`). Pour réactiver dynamiquement les **Hover Texts de la cartographie (onglet 2)** lors du survol de la souris, implémentez localement le CSV parent formel au sein de votre arborescence de travail `data/`.
+
+- **Prérequis Standard :** L'usage de Python `3.9` ou supérieur est fortement conseillé au travers d'un environnement virtuel (`.venv`).
+
+### 5.2. Installation et Lancement Rapide
+
+1. Installez le package minimaliste d'inférence (réseau allégé de toute dépendance de nettoyage via la matrice d'`ia_notes.py`) :
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Lancez le serveur local Dash de l'application :
+2. Initiez le Boot Server Dash via la commande ci-après :
 ```bash
 python app.py
 ```
-*Le tableau de bord sera instantanément accessible depuis votre navigateur via l'adresse standard `http://127.0.0.1:8050/`.*
-
----
+*Le portail applicatif est dorénavant propulsé en HTTPS Local (sur votre port d'écoute localhost `http://127.0.0.1:8050/`).*
