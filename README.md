@@ -71,7 +71,7 @@ Encodage BERT:  20%|███████████▏ | 396/1954 [11:01<42:58
 
 **Apprentissage Profond et Rétropropagation (MLP) :**
 ```text
-Epochs completed:  50%| ████████████████████████████████████▌                                      100/200 [02:03]completed  100  /  200 epochs
+Epochs completed:  50%| ████████████████████████████████████▌                                      100/200 [02:03]completed  100  /  200 epochs 
 ```
 ![Capture du terminal](assets/cli1.png)
 ![Capture du terminal](assets/cli2.png)
