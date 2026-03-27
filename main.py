@@ -45,6 +45,8 @@ def main():
         
     elif args.train:
         print(f"\n{C.VERT} Lancement du mode Entraînement...{C.RESET}")
+        print(f"\n{C.JAUNE}Chargement du CSV (pour récupérer les labels de notes)...{C.RESET}")
+        predicteur.charger_data()
         predicteur.charger_embeddings()
         predicteur.lancer_entrainement()
         predicteur.sauvegarder_cerveau()
@@ -52,6 +54,8 @@ def main():
         
     elif args.project:
         print(f"\n{C.VERT} Lancement du mode Projection...{C.RESET}")
+        print(f"\n{C.JAUNE}Chargement du CSV (pour cartographier les couleurs des notes)...{C.RESET}")
+        predicteur.charger_data()
         predicteur.charger_embeddings()
         predicteur.calculer_projections()
         print(f"\n{C.VERT}🎉 Projections calculées et sauvegardées avec succès !{C.RESET}")

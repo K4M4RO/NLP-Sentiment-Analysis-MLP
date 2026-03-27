@@ -139,6 +139,7 @@ class NotesPredicteur:
         meilleur_r2 = -float('inf')
         meilleur_modele = None
         meilleurs_scores = {}
+        historique_architectures = []
         
         for arch in architectures:
             print(f"\n{C.BLEU}Entraînement de l'architecture {arch}...{C.RESET}")
@@ -165,6 +166,13 @@ class NotesPredicteur:
             couleur = C.VERT if r2 > 0.4 else C.JAUNE
             print(f"   {couleur}Architecture {arch} : R2 = {r2:.4f} | MSE = {mse:.4f} (Arrêté à l'itération {mlp_candidat.n_iter_}){C.RESET}")
             
+            historique_architectures.append({
+                "Architecture": str(arch),
+                "R2_Score": float(r2),
+                "MSE": float(mse),
+                "Epochs": int(mlp_candidat.n_iter_)
+            })
+            
             if r2 > meilleur_r2:
                 meilleur_r2 = r2
                 meilleur_modele = mlp_candidat
@@ -172,6 +180,16 @@ class NotesPredicteur:
                 
         print(f"\n{C.VERT}🏆 Vainqueur : Architecture {meilleur_modele.hidden_layer_sizes} avec R2 = {meilleur_r2:.4f}{C.RESET}")
         
+        # SAUVEGARDE DE L'HISTORIQUE DE BENCHMARK
+        import json
+        chemin_historique = os.path.join(self._dossier_sauvegarde, "historique_architectures.json")
+        try:
+            with open(chemin_historique, "w") as f:
+                json.dump(historique_architectures, f, indent=4)
+            print(f"{C.JAUNE}Historique des architectures sauvegardé localement pour le Dashboard.{C.RESET}")
+        except Exception as e:
+            print(f"{C.ROUGE}Erreur lors de la sauvegarde de l'historique : {e}{C.RESET}")
+            
         self._mlp = meilleur_modele
         self._score_ia = meilleurs_scores
         
