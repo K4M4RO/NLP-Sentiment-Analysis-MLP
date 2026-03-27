@@ -73,6 +73,9 @@ Encodage BERT:  20%|███████████▏ | 396/1954 [11:01<42:58
 ```text
 Epochs completed:  50%| ████████████████████████████████████▌                                      100/200 [02:03]completed  100  /  200 epochs
 ```
+![Capture du terminal](assets/cli1.png)
+![Capture du terminal](assets/cli2.png)
+![Capture du terminal](assets/cli3.png)
 
 ---
 
@@ -126,8 +129,6 @@ Le dashboard restitue l'architecture finale retenue (MLP `128-64-32`), la matric
 Il est primordial de spécifier que l'architecture respecte strictement la séparation hermétique des trois ensembles en Data Science : l'apprentissage ciblé sur l'ensemble de révision (Train), une régulation dynamique des surajustements (Early Stopping) via un sous-ensemble interne de **Validation**, et enfin, l'extraction de ces compteurs de performance impartiaux via l'ensemble de **Test**.
 
 ![Capture Rapport Performance](assets/perf.png)
-
-Explication de la matrice de confusion :
 
 ![Capture Matrice de Confusion](assets/matrice_confusion.png)
 
