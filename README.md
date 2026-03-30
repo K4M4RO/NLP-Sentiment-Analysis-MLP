@@ -48,12 +48,14 @@ Nous avons mis en place un processus d'Extraction et de Transformation simple po
 
 ### 2.1. Préparation et Nettoyage des Données
 
-Le jeu de données initial contient environ 3 millions de lignes. Le script utilitaire `fouille_donnees.py` applique plusieurs traitements :
+Le jeu de données initial contient environ 3 millions de lignes. Le script utilitaire `fouille_donnees.py` applique un pipeline de traitement rigoureux :
 
-* **Nettoyage :** Suppression des entrées présentant des valeurs manquantes (`NaN`) dans le texte de l'avis ou dans le score.
-* **Seuillage :** Conservation des livres ayant au moins 10 avis pour assurer un minimum de fiabilité.
-* **Équilibrage :** Afin de prévenir un biais sur des classes majoritaires, un sous-échantillonnage strict a été imposé (extraction exacte de 100 000 avis par note, de 1.0 à 5.0).
-* Le jeu de données final, exploité pour le modèle, s'élève à **500 000 enregistrements**.
+* **Nettoyage :** Suppression des entrées présentant des valeurs manquantes (NaN) dans le texte de l'avis ou dans le score.
+* **Seuillage :** Conservation exclusive des livres ayant au moins 10 avis pour assurer un minimum de consistance statistique.
+* **Filtrage par Genre :** Pour intégrer la dimension thématique de manière pertinente, nous avons identifié et isolé les **10 genres littéraires les plus représentés**. Tous les autres genres minoritaires ont été regroupés sous une catégorie "Autre" (soit 11 catégories au total encodées en One-Hot).
+* **Équilibrage strict :** Afin de prévenir tout biais d'apprentissage vers les notes habituellement majoritaires (ex: les 5 étoiles), un sous-échantillonnage a été imposé. Nous avons extrait exactement 100 000 avis pour chaque note (de 1.0 à 5.0).
+
+Le jeu de données final, parfaitement équilibré et exploité pour l'entraînement, s'élève à **500 000 enregistrements**.
 
 ### 2.2. Mode CLI : Exécution Modulaire (`main.py`)
 
@@ -99,7 +101,7 @@ La modélisation finale repose sur une combinaison d'embeddings de transformateu
 
 **L'encodage :** Nous utilisons l'outil `all-mpnet-base-v2` (`sentence-transformers`) pour distiller un vecteur sémantique de **768 dimensions**. Nous y concaténons une information fondamentale : le genre du livre, appliqué via un encodage One-Hot sur **11 dimensions**. Le modèle reçoit donc en entrée **779 features**.
 
-**Le Modèle :** Nous avons choisi un Perceptron Multicouche (MLP). Au lieu d'utiliser un modèle surdimensionné difficile à contrôler, notre réseau est composé de deux couches cachées concises : `(64, 64)`. Cette légèreté limite significativement le nombre de paramètres et les risques de mémorisation brute.
+**Le Modèle et l'Architecture :** Dans une démarche empirique, nous avons testé et comparé le F1-Score et le R² de plusieurs architectures de réseaux de neurones (notamment `(30, 30)`, `(64, 64)`, et `(128, 64, 32)`). Le choix s'est porté sur le Perceptron Multicouche (MLP) de taille intermédiaire `(64, 64)`. Cette architecture s'est avérée être le meilleur compromis : elle offre les meilleures performances de généralisation tout en restant suffisamment légère pour limiter la mémorisation brute (overfitting) souvent observée sur les modèles surdimensionnés.
 
 ### 3.2. Gestion de l'Overfitting
 
