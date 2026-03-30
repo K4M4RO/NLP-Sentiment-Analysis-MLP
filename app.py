@@ -2,6 +2,7 @@ import dash
 from dash import dcc, html, Input, Output, State
 import dash_bootstrap_components as dbc
 import plotly.express as px
+import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 import os
@@ -34,12 +35,34 @@ if os.path.exists(chemin_genres_config):
 else:
     print("Aucun fichier genres_config.json trouvé. Dropdown désactivé.")
 
+# -----------------------------------------------------------------------------
+# PRÉPARATION DES DONNÉES UMAP (Global)
+# -----------------------------------------------------------------------------
+chemin_csv_umap = "data/donnees_dashboard_umap.csv"
+df_umap_global = None
+
+try:
+    if os.path.exists(chemin_csv_umap):
+        df_umap_global = pd.read_csv(chemin_csv_umap)
+        
+        # Textes pour le survol et le clic
+        df_umap_global['Avis'] = df_umap_global['Texte'].apply(lambda x: str(x)[:100] + "..." if len(str(x)) > 100 else str(x))
+        df_umap_global['Avis Complet'] = df_umap_global['Texte']
+        
+        print(f"✅ Données UMAP Dashboard chargées : {len(df_umap_global)} points.")
+    else:
+        print(f"Avertissement : Fichier {chemin_csv_umap} introuvable. Effectuez '--project'.")
+except Exception as e:
+    df_umap_global = None
+    print(f"Erreur chargement UMAP CSV: {e}")
+
 # Variables pour Performance
 r2_score = "N/A"
 architecture = "N/A"
 f1_val = "N/A"
 mat_conf = "N/A"
 class_report = "N/A"
+mse_val = "N/A"
 
 try:
     if hasattr(predicteur, "_score_ia") and predicteur._score_ia:
@@ -47,6 +70,9 @@ try:
         f1_val = predicteur._score_ia.get('f1_score', "N/A")
         if f1_val != "N/A":
             f1_val = round(float(f1_val), 3)
+        mse_raw = predicteur._score_ia.get('Mean Squared Error', "N/A")
+        if mse_raw != "N/A":
+            mse_val = f"{float(mse_raw):.4f}"
         mat_conf = predicteur._score_ia.get('confusion_matrix', "N/A")
         class_report = predicteur._score_ia.get('classification_report', "N/A")
         
@@ -54,7 +80,7 @@ try:
         architecture = predicteur._mlp.hidden_layer_sizes
         
     # Fallback vers l'historique json si manquant
-    if f1_val == "N/A" or mat_conf == "N/A" or class_report == "N/A":
+    if f1_val == "N/A" or mat_conf == "N/A" or class_report == "N/A" or mse_val == "N/A":
         chemin_historique = "data/historique_architectures.json"
         if os.path.exists(chemin_historique):
             with open(chemin_historique, "r") as f:
@@ -65,6 +91,10 @@ try:
                     fval = dernier.get("f1_score", "N/A")
                     if fval != "N/A":
                         f1_val = round(float(fval), 3)
+                if mse_val == "N/A":
+                    m_val = dernier.get("MSE", "N/A")
+                    if m_val != "N/A":
+                        mse_val = f"{float(m_val):.4f}"
                 mat_conf = mconf if (mconf := dernier.get("confusion_matrix")) else mat_conf
                 class_report = crep if (crep := dernier.get("classification_report")) else class_report
                 r2_score = r2_score if r2_score != "N/A" else dernier.get("R2_Score", "N/A")
@@ -84,12 +114,85 @@ try:
 except Exception as e:
     print(f"Erreur chargement perf: {e}")
 
-# Préparation HTML Matrice de confusion
-tn, fp, fn, tp = "N/A", "N/A", "N/A", "N/A"
+# Préparation Matrice de Confusion 5x5 (Plotly Graph) à partir des données Test
+fig_mat_conf = go.Figure()
+if df_umap_global is not None and 'Note_Vraie' in df_umap_global.columns and 'Note_Predite' in df_umap_global.columns:
+    from sklearn.metrics import confusion_matrix
+    
+    # Récupération des classes discrètes (1 à 5)
+    y_true_5 = np.round(df_umap_global['Note_Vraie']).astype(int)
+    y_pred_5 = np.clip(np.round(df_umap_global['Note_Predite']).astype(int), 1, 5)
+    
+    cm_5 = confusion_matrix(y_true_5, y_pred_5, labels=[1, 2, 3, 4, 5])
+    
+    # Normalisation 'true' => par ligne (row sum)
+    row_sums = cm_5.sum(axis=1)[:, np.newaxis]
+    row_sums[row_sums == 0] = 1 
+    cm_norm = (cm_5 / row_sums) * 100
+    
+    z_text = [[f"{val:.1f}%" for val in row] for row in cm_norm]
+    
+    fig_mat_conf.add_trace(go.Heatmap(
+        z=cm_norm,
+        x=["1", "2", "3", "4", "5"],
+        y=["1", "2", "3", "4", "5"],
+        text=z_text,
+        texttemplate="%{text}",
+        textfont={"size": 14, "color": "white", "weight": "bold"},
+        colorscale=["#0f1929", "#1b4a8e", "#2980b9", "#3498db"],
+        zmin=0, zmax=100,
+        hoverinfo="x+y+text"
+    ))
+    
+    fig_mat_conf.update_layout(
+        template="plotly_dark", 
+        plot_bgcolor='rgba(0,0,0,0)', 
+        paper_bgcolor='rgba(0,0,0,0)',
+        xaxis_title="Note Prédite",
+        yaxis_title="Note Réelle",
+        margin=dict(t=20, b=40, l=40, r=20)
+    )
+    # Axes sans inclinaison et inverser Y pour conformité standard Top-Left
+    fig_mat_conf.update_xaxes(tickangle=0)
+    fig_mat_conf.update_yaxes(autorange="reversed", tickangle=0)
+else:
+    fig_mat_conf.update_layout(title="Données non disponibles (Entraînement Requis)", template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+
+# Préparation Matrice de Confusion Globale (JSON, 2x2)
+fig_mat_conf_global = go.Figure()
 if isinstance(mat_conf, list) and len(mat_conf) == 2:
-    tn, fp = mat_conf[0]
-    fn, tp = mat_conf[1]
-    tn, fp, fn, tp = f"{tn:,}".replace(',', ' '), f"{fp:,}".replace(',', ' '), f"{fn:,}".replace(',', ' '), f"{tp:,}".replace(',', ' ')
+    cm_global = np.array(mat_conf)
+    # Normalisation 'true' => par ligne (row sum)
+    row_sums_global = cm_global.sum(axis=1)[:, np.newaxis]
+    row_sums_global[row_sums_global == 0] = 1 
+    cm_norm_global = (cm_global / row_sums_global) * 100
+    
+    z_text_global = [[f"{val:.1f}%" for val in row] for row in cm_norm_global]
+    
+    fig_mat_conf_global.add_trace(go.Heatmap(
+        z=cm_norm_global,
+        x=["Prédit Négatif (1-2)", "Prédit Positif (3-5)"],
+        y=["Vrai Négatif (1-2)", "Vrai Positif (3-5)"],
+        text=z_text_global,
+        texttemplate="%{text}",
+        textfont={"size": 14, "color": "white", "weight": "bold"},
+        colorscale=["#0f1929", "#1b4a8e", "#2980b9", "#3498db"],
+        zmin=0, zmax=100,
+        hoverinfo="x+y+text"
+    ))
+    
+    fig_mat_conf_global.update_layout(
+        template="plotly_dark", 
+        plot_bgcolor='rgba(0,0,0,0)', 
+        paper_bgcolor='rgba(0,0,0,0)',
+        xaxis_title="Classe Prédite",
+        yaxis_title="Classe Réelle",
+        margin=dict(t=20, b=40, l=40, r=20)
+    )
+    # Inverser l'Axe Y pour conformité standard Top-Left
+    fig_mat_conf_global.update_yaxes(autorange="reversed")
+else:
+    fig_mat_conf_global.update_layout(title="Matrice globale non disponible", template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
 
 # Préparation HTML Rapport Classification
 report_rows = []
@@ -173,22 +276,7 @@ DROPDOWN_STYLE = {
     "marginBottom": "12px"
 }
 
-# -----------------------------------------------------------------------------
-# PRÉPARATION DES DONNÉES UMAP (Global)
-# -----------------------------------------------------------------------------
-chemin_csv_umap = "data/donnees_dashboard_umap.csv"
-df_umap_global = None
-
-if os.path.exists(chemin_csv_umap):
-    df_umap_global = pd.read_csv(chemin_csv_umap)
-    
-    # Textes pour le survol et le clic
-    df_umap_global['Avis'] = df_umap_global['Texte'].apply(lambda x: str(x)[:100] + "..." if len(str(x)) > 100 else str(x))
-    df_umap_global['Avis Complet'] = df_umap_global['Texte']
-    
-    print(f"✅ Données UMAP Dashboard chargées : {len(df_umap_global)} points.")
-else:
-    print(f"Avertissement : Fichier {chemin_csv_umap} introuvable. Effectuez '--project'.")
+# (Le chargement global des données UMAP a été déplacé en haut de fichier)
 
 def get_umap_figure(range_notes=[1, 5], genres_selection=None):
     if df_umap_global is not None:
@@ -485,7 +573,7 @@ tab3_content = dbc.CardBody([
         dbc.Col(dbc.Card([
             dbc.CardBody([
                 html.H6("ARCHITECTURE MLP", className="text-muted mb-1", style={"fontSize": "0.8rem", "letterSpacing": "1px"}),
-                html.H3(str(architecture), style={"color": "#3498db", "fontWeight": "600"})
+                html.H3(str(architecture), style={"color": "#3498db", "fontWeight": "600", "whiteSpace": "nowrap", "overflow": "visible"})
             ])
         ], style=CARD_STYLE)),
         dbc.Col(dbc.Card([
@@ -499,50 +587,61 @@ tab3_content = dbc.CardBody([
                 html.H6("F1-SCORE CLASSIFICATION", className="text-muted mb-1", style={"fontSize": "0.8rem", "letterSpacing": "1px"}),
                 html.H3(f"{f1_val}", style={"color": "#3498db", "fontWeight": "600"})
             ])
+        ], style=CARD_STYLE)),
+        dbc.Col(dbc.Card([
+            dbc.CardBody([
+                html.Div([
+                    html.H6("MSE (Précision de l'erreur)", id="tooltip-target-mse", className="text-muted mb-1 d-inline-block", style={"fontSize": "0.8rem", "letterSpacing": "1px", "cursor": "help", "borderBottom": "1px dotted #888"}),
+                    dbc.Tooltip("Erreur Quadratique Moyenne : mesure la précision des prédictions. Plus elle est basse, plus l'IA est proche de la note réelle.", target="tooltip-target-mse", placement="bottom"),
+                ]),
+                html.H3(f"{mse_val}", style={"color": "#3498db", "fontWeight": "600"})
+            ])
         ], style=CARD_STYLE))
     ], className="mb-4"),
     
     dbc.Row([
-        dbc.Col(dbc.Card(dcc.Graph(figure=fig_benchmark, config={'displayModeBar': False}), style={"backgroundColor": "#1a1a1a", "border": "none", "borderRadius": "12px", "boxShadow": "0 4px 6px rgba(0,0,0,0.3)"}), width=12, md=6, className="mb-4 mb-md-0"),
-        dbc.Col(dbc.Card(dcc.Graph(figure=fig_loss, config={'displayModeBar': False}), style={"backgroundColor": "#1a1a1a", "border": "none", "borderRadius": "12px", "boxShadow": "0 4px 6px rgba(0,0,0,0.3)"}), width=12, md=6)
-    ], className="mb-5"),
+        dbc.Col(dbc.Card([
+            dbc.CardBody([
+                dcc.Graph(figure=fig_benchmark, config={'displayModeBar': False}),
+                html.P("Performances comparées sur le set de TEST (100 000 avis).", className="text-muted text-center mt-2", style={"fontSize": "0.75rem", "fontStyle": "italic", "marginBottom": "0"})
+            ])
+        ], style={"backgroundColor": "#1a1a1a", "border": "none", "borderRadius": "12px", "boxShadow": "0 4px 6px rgba(0,0,0,0.3)"}), width=12, md=6, className="mb-4 mb-md-0"),
+        dbc.Col(dbc.Card([
+            dbc.CardBody([
+                dcc.Graph(figure=fig_loss, config={'displayModeBar': False}),
+                html.P("Suivi en temps réel durant l'entraînement (400 000 train / 100 000 validation).", className="text-muted text-center mt-2", style={"fontSize": "0.75rem", "fontStyle": "italic", "marginBottom": "0"})
+            ])
+        ], style={"backgroundColor": "#1a1a1a", "border": "none", "borderRadius": "12px", "boxShadow": "0 4px 6px rgba(0,0,0,0.3)"}), width=12, md=6)
+    ], className="mb-4"),
     
     dbc.Row([
         dbc.Col(dbc.Card([
             dbc.CardBody([
-                html.H6("MATRICE DE CONFUSION", className="text-white mb-2", style={"fontSize": "1rem", "letterSpacing": "1px", "fontWeight": "bold"}),
-                html.P("Évaluation dynamique (Seuil > 2.5)", className="text-muted mb-4", style={"fontSize": "0.85rem"}),
-                html.Table([
-                    html.Thead(
-                        html.Tr([
-                            html.Th("", style={"border": "none"}), 
-                            html.Th("Prédit Négatif (1-2)", style={"padding": "12px", "color": "#3498db", "fontWeight": "bold"}), 
-                            html.Th("Prédit Positif (3-5)", style={"padding": "12px", "color": "#3498db", "fontWeight": "bold"})
-                        ])
-                    ),
-                    html.Tbody([
-                        html.Tr([
-                            html.Th("Vrai Négatif (1-2)", style={"padding": "12px", "color": "#3498db", "textAlign": "right", "fontWeight": "bold"}),
-                            html.Td(f"{tn}", style={"padding": "15px", "backgroundColor": "rgba(52, 152, 219, 0.15)", "fontWeight": "bold", "border": "1px solid #333", "color": "#fff", "fontSize": "1.1rem"}),
-                            html.Td(f"{fp}", style={"padding": "15px", "border": "1px solid #333", "color": "#aaa"})
-                        ]),
-                        html.Tr([
-                            html.Th("Vrai Positif (3-5)", style={"padding": "12px", "color": "#3498db", "textAlign": "right", "fontWeight": "bold"}),
-                            html.Td(f"{fn}", style={"padding": "15px", "border": "1px solid #333", "color": "#aaa"}),
-                            html.Td(f"{tp}", style={"padding": "15px", "backgroundColor": "rgba(52, 152, 219, 0.15)", "fontWeight": "bold", "border": "1px solid #333", "color": "#fff", "fontSize": "1.1rem"})
-                        ])
-                    ])
-                ], style={"width": "100%", "marginTop": "10px", "borderCollapse": "collapse", "textAlign": "center"})
+                html.H6("MATRICE DE L'ÉCHANTILLON (Interactive)", className="text-white mb-2", style={"fontSize": "1rem", "letterSpacing": "1px", "fontWeight": "bold"}),
+                html.P("Évaluation sémantique détaillée par note", className="text-muted mb-4", style={"fontSize": "0.85rem"}),
+                dcc.Graph(figure=fig_mat_conf, config={'displayModeBar': False}, style={"height": "350px"}),
+                html.P("Évaluation locale basée sur l'échantillon de 1 500 avis de test projetés dans l'UMAP.", className="text-muted text-center mt-3", style={"fontSize": "0.75rem", "fontStyle": "italic", "marginBottom": "0"})
             ])
-        ], style={"backgroundColor": "#1a1a1a", "border": "none", "borderRadius": "12px", "boxShadow": "0 4px 6px rgba(0,0,0,0.3)", "height": "100%"}), width=12, lg=5, className="mb-4 mb-lg-0"),
+        ], style={"backgroundColor": "#1a1a1a", "border": "none", "borderRadius": "12px", "boxShadow": "0 4px 6px rgba(0,0,0,0.3)", "height": "100%"}), width=12, lg=6, className="mb-4 mb-lg-0"),
         
+        dbc.Col(dbc.Card([
+            dbc.CardBody([
+                html.H6("MATRICE GLOBALE (Certifiée)", className="text-white mb-2", style={"fontSize": "1rem", "letterSpacing": "1px", "fontWeight": "bold"}),
+                html.P("Évaluation binaire (Seuil strict > 2.5)", className="text-muted mb-4", style={"fontSize": "0.85rem"}),
+                dcc.Graph(figure=fig_mat_conf_global, config={'displayModeBar': False}, style={"height": "350px"}),
+                html.P("Rapport de performance final certifié, calculé sur l'intégralité du set de test (100 000 avis).", className="text-muted text-center mt-3", style={"fontSize": "0.75rem", "fontStyle": "italic", "marginBottom": "0"})
+            ])
+        ], style={"backgroundColor": "#1a1a1a", "border": "none", "borderRadius": "12px", "boxShadow": "0 4px 6px rgba(0,0,0,0.3)", "height": "100%"}), width=12, lg=6)
+    ], className="mb-4"),
+    
+    dbc.Row([
         dbc.Col(dbc.Card([
             dbc.CardBody([
                 html.H6("RAPPORT DE CLASSIFICATION", className="text-white mb-2", style={"fontSize": "1rem", "letterSpacing": "1px", "fontWeight": "bold"}),
                 html.P("Métriques détaillées pour chaque classe", className="text-muted mb-4", style={"fontSize": "0.85rem"}),
                 class_report_component
             ])
-        ], style={"backgroundColor": "#1a1a1a", "border": "none", "borderRadius": "12px", "boxShadow": "0 4px 6px rgba(0,0,0,0.3)", "height": "100%"}), width=12, lg=7)
+        ], style={"backgroundColor": "#1a1a1a", "border": "none", "borderRadius": "12px", "boxShadow": "0 4px 6px rgba(0,0,0,0.3)", "height": "100%"}), width=12)
     ], className="mb-5")
 ])
 

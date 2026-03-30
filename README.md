@@ -103,13 +103,30 @@ La modélisation finale repose sur une combinaison d'embeddings de transformateu
 
 **L'encodage :** Nous utilisons l'outil `all-mpnet-base-v2` (`sentence-transformers`) pour distiller un vecteur sémantique de **768 dimensions**. Nous y concaténons une information fondamentale : le genre du livre, appliqué via un encodage One-Hot sur **11 dimensions**. Le modèle reçoit donc en entrée **779 features**.
 
-**Le Modèle et l'Architecture :** Dans une démarche empirique, nous avons testé et comparé le F1-Score et le R² de plusieurs architectures de réseaux de neurones (notamment `(30, 30)`, `(64, 64)`, et `(128, 64, 32)`). Le choix s'est porté sur le Perceptron Multicouche (MLP) de taille intermédiaire `(64, 64)`. Cette architecture s'est avérée être le meilleur compromis : elle offre les meilleures performances de généralisation tout en restant suffisamment légère pour limiter la mémorisation brute (overfitting) souvent observée sur les modèles surdimensionnés.
+**Le Modèle et l'Architecture :** Dans une démarche empirique, nous avons testé et comparé le F1-Score et le R² de plusieurs architectures de réseaux de neurones (notamment `(30, 30)`, `(64, 64)`, et `(128, 64, 32)`). Le choix s'est porté sur le Perceptron Multicouche (MLP) comportant trois couches cachées : `(128, 64, 32)`. Cette architecture s'est avérée être le meilleur compromis : elle offre les meilleures performances de précision avec un **MSE d'environ 0.6973** et un **$R^2$ de 0.65**, favorisant une mémorisation latente sans sacrifier la généralisation.
 
 ### 3.2. Gestion de l'Overfitting
 
 Travailler sur le langage naturel avec un grand nombre de dimensions génère inévitablement de l'overfitting. Le réseau aura tendance, au fil des epochs, à retenir par cœur les données de construction du texte pour minimiser mécaniquement sa perte, au détriment de sa capacité de généralisation.
 
 Nous avons répondu à cela avec pragmatisme : un processus strict d'**Early Stopping** a été codé. L'entraînement est itératif (via `.partial_fit()`) et traque une perte sur des données laissées hors-chantier (Validation Loss). Grâce à une patience de 10 époques (le réseau s'arrête de s'entraîner si la `val_loss` stagne pendant 10 itérations), nous garantissons que le modèle sauvegardé préserve ses capacités de généralisation.
+
+**Restauration des Poids (Restore Best Weights) :**
+Pour garantir une généralisation optimale, notre Early Stopping ne se contente pas d'arrêter l'entraînement. Il utilise une sauvegarde profonde (`deepcopy`) pour restaurer automatiquement les meilleurs poids du réseau identifiés *avant* la phase de sur-apprentissage (overfitting). Cela garantit que le modèle final est celui qui possède la plus petite erreur de validation possible.
+
+### 3.3. Protocole d'Évaluation et Intégrité des Données
+
+Le projet applique une séparation stricte du jeu de données initial (500 000 avis) pour garantir la validité scientifique des mesures de performance :
+
+**Répartition Train/Test (80/20) :**
+- **Set d'Entraînement (400 000 avis) :** Utilisé pour l'ajustement des poids du réseau de neurones. Une fraction interne de ce set est dédiée à la validation pour le mécanisme d'Early Stopping.
+- **Set de Test (100 000 avis) :** Données totalement indépendantes, isolées dès le début du pipeline. Ce set sert exclusivement à l'évaluation finale.
+
+**Provenance des Métriques du Dashboard :**
+- Les indicateurs globaux (F1-Score, R², MSE) ainsi que la matrice de confusion certifiée sont calculés sur l'intégralité des 100 000 avis de test.
+- L'échantillon de 1 500 points utilisé pour la projection UMAP et la matrice interactive est extrait par tirage aléatoire uniquement au sein de ce set de test.
+
+Cette méthodologie assure que les résultats présentés reflètent la capacité réelle de généralisation du modèle face à des données non rencontrées durant l'apprentissage (absence de Data Leakage).
 
 ---
 
@@ -138,7 +155,7 @@ L'interface interagit au survol en affichant l'extrait d'avis unique lié à cha
 ![Capture Hover Text UMAP](assets/perf2.png)
 
 ### 3. Rapport de Forme (Metrics)
-Ce panneau dresse formellement le bilan analytique des performances évaluées sur un ensemble de **Test**. En évitant rigoureusement l'overfitting, notre évaluation indépendante retourne un **score F1 robuste d'environ 0.87**.
+Ce panneau dresse formellement le bilan analytique des performances évaluées sur un ensemble de **Test**. En évitant rigoureusement l'overfitting, notre évaluation indépendante retourne un **score F1 robuste d'environ 0.87**, une variabilité capturée de **$R^2$ = 0.65**, et surtout, une erreur quadratique minimisée avec un **MSE d'environ 0.6973**.
 
 ![Capture Rapport Performance](assets/perf.png)
 

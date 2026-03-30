@@ -4,7 +4,7 @@ from sklearn.metrics import mean_squared_error, r2_score, confusion_matrix, clas
 from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import numpy as np
-import joblib, os, json
+import joblib, os, json, copy
 from sklearn.decomposition import PCA
 # torch, sentence_transformers et umap sont importés localement pour accélérer le CLI
 
@@ -237,6 +237,7 @@ class NotesPredicteur:
             )
             
             best_val_loss = float('inf')
+            best_weights = None
             patience = 10
             patience_counter = 0
             val_loss_curve = []
@@ -255,12 +256,20 @@ class NotesPredicteur:
                 if val_loss < best_val_loss - 1e-4:
                     best_val_loss = val_loss
                     patience_counter = 0
+                    # Sauvegarde robuste en évitant les références mémoires altérées
+                    best_weights = (copy.deepcopy(mlp_candidat.coefs_), copy.deepcopy(mlp_candidat.intercepts_))
                 else:
                     patience_counter += 1
                 
                 if patience_counter >= patience:
                     print(f"   {C.JAUNE}Early stopping (patience atteinte) à l'itération {epoch+1}{C.RESET}")
                     break
+            
+            # Restauration finale des meilleurs poids (pour annuler l'overfitting des X dernières itérations)
+            if best_weights is not None:
+                mlp_candidat.coefs_ = best_weights[0]
+                mlp_candidat.intercepts_ = best_weights[1]
+                print(f"   {C.VERT}Poids optimaux restaurés avec succès (val_loss = {best_val_loss:.4f}){C.RESET}")
                     
             # Injecter val_loss_curve pour qu'elle puisse être récupérée par app.py plus tard
             mlp_candidat.val_loss_curve_ = val_loss_curve
@@ -449,8 +458,16 @@ class NotesPredicteur:
         
         nb_samples = 1500
         print(f"\n{C.JAUNE}Sélection d'un échantillon de {nb_samples} points pour UMAP ({X_combined.shape[1]} dimensions)...{C.RESET}")
-        actual_samples = min(nb_samples, len(X_combined))
-        indices_dash = np.random.choice(len(X_combined), actual_samples, replace=False)
+        
+        # --- CORRECTION DATA LEAKAGE ---
+        from sklearn.model_selection import train_test_split
+        indices_complets = np.arange(len(X_combined))
+        _, idx_test = train_test_split(indices_complets, test_size=0.2, random_state=42)
+        
+        actual_samples = min(nb_samples, len(idx_test))
+        indices_dash = np.random.choice(idx_test, actual_samples, replace=False)
+        
+        print(f"{C.VERT}Échantillonnage du Dashboard effectué sur le set de TEST (Zéro fuite de données).{C.RESET}")
         
         X_sample = X_combined[indices_dash]
         X_sample_scaled = X_combined_scaled[indices_dash]
