@@ -1,76 +1,173 @@
 # NLP Sentiment Analytics Dashboard
 
-Une approche de Machine Learning pragmatique pour la prédiction de notes (1 à 5 étoiles) d'avis littéraires, basée sur l'analyse sémantique du texte croisée avec les métadonnées de genre.
+Un projet de Machine Learning visant à prédire la note (1 à 5 étoiles) d'un avis littéraire à partir de son texte et de ses métadonnées. L'objectif est d'explorer les techniques de NLP sur un corpus réel (environ 500 000 avis).
 
-Le projet repose sur un volume de données significatif (environ **500 000 avis**) et propose une architecture complète : de l'ingestion textuelle à la visualisation de l'espace latent interne du modèle via une application web interactive.
-
----
-
-## 1. Pipeline Technique & Architecture
-
-Le défi principal de ce projet était de combiner la richesse sémantique du texte libre avec de la donnée tabulaire stricte (le genre du livre).
-
-**L'Encodage et les Features :**
-Nous utilisons un embedding textuel dense généré par le transformateur pré-entraîné `all-mpnet-base-v2`, produisant **768 dimensions** sémantiques. S'y ajoute un encodage One-Hot des genres littéraires sur **11 dimensions**. 
-La concaténation de ces deux flux offre à notre modèle un espace de représentation complet de **779 features** par avis.
-
-**Le Modèle Prédictif (MLP) :**
-Plutôt que d'opter pour des architectures inutilement complexes, nous utilisons un **Perceptron Multicouche (MLPRegressor)**. L'architecture optimale retenue est relativement légère : deux couches cachées concises `(64, 64)`. Cette légèreté étudiée permet de converger rapidement tout en restreignant le nombre de paramètres libres, limitant ainsi la capacité du modèle à "apprendre par cœur" le bruit du dataset.
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![HuggingFace](https://img.shields.io/badge/HuggingFace-FF9D00?style=for-the-badge&logo=huggingface&logoColor=white)
+![Scikit-Learn](https://img.shields.io/badge/scikit--learn-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)
+![Plotly](https://img.shields.io/badge/Plotly-3F4F75?style=for-the-badge&logo=plotly&logoColor=white)
+![Dash](https://img.shields.io/badge/Dash-008DE4?style=for-the-badge&logo=dash&logoColor=white)
 
 ---
 
-## 2. Réflexion Scientifique et Réalisme
+## 1. Vue d'Ensemble de l'Architecture
 
-### La Réalité de l'Overfitting
-Travailler sur du texte pose toujours le même problème : la très haute dimensionnalité d'un embedding (768 variables pour le sens) crée un espace géométrique où il est mathématiquement extrêmement facile pour un modèle de mémoriser les exemples d'entraînement. L'overfitting n'y est pas un "accident", c'est le comportement naturel du réseau neuronal.
+Le pipeline de traitement s'articule autour de l'ingestion des données, de l'entraînement du modèle prédictif et de son analyse visuelle.
 
-### Notre Résolution par Early Stopping
-Pour garantir que notre modèle *comprend* la polarité des notes plutôt que de mémoriser le dataset, nous avons implémenté un contrôle strict de la convergence. À la place de la méthode `.fit()` classique, nous entraînons le réseau de manière séquentielle (Epoch par Epoch via `.partial_fit()`). 
+### 1.1. Structure du Projet
 
-À chaque époque, nous évaluons une **Validation Loss** (Perte sur des données jamais vues par l'algorithme). 
-Grâce à un mécanisme d'**Early Stopping avec une patience de 10 époques**, l'entraînement s'arrête net dès que le réseau commence à sur-apprendre sur le dataset principal. Ce protocole nous assure de figer et de sauvegarder la version stricte du modèle qui généralise le mieux (obtenant des performances très correctes : un **F1-Score autour de 0.87**).
+L'arborescence illustre la séparation stricte entre le front-end asynchrone, les scripts d'exécution et les données compilées.
+
+```text
+Projet-S4/
+├── app.py                        # Frontend Dash UI & Dashboard interactif
+├── main.py                       # Script principal (entraînement, projection, pipeline)
+├── fouille_donnees.py            # Script de nettoyage, équilibrage et échantillonnage (ETL)
+├── requirements.txt              # Dépendances Python
+├── .gitignore                    # Règles d'exclusion Git (gestion des gros fichiers CSV)
+├── assets/                       # Dossier contenant les captures d'écran du README
+├── composants/                   # Scripts et modules métiers
+│   └── ia_notes.py               # Cœur de l'IA : pipeline NLP, MLP, et extraction de l'Espace Latent
+└── data/                         # Modèles, caches et données pré-calculées
+    ├── books_rating_500k_filtre.csv  # Dataset source nettoyé (non tracké via Git LFS)
+    ├── donnees_dashboard_umap.csv    # Coordonnées finales et notes pour la cartographie Dash
+    ├── embeddings.npy                # Cache des vecteurs sémantiques BERT (768D)
+    ├── genres_config.json            # Configuration de l'encodage One-Hot des genres (11D)
+    ├── historique_architectures.json # Suivi des performances et du F1-Score des modèles testés
+    ├── ia_notes_sauvegarde.joblib    # Poids et biais du modèle MLP optimal sauvegardé
+    ├── pca_coords.npy                # Coordonnées de la réduction intermédiaire ACP
+    ├── umap_coords_dash.npy          # Coordonnées 2D UMAP historiques
+    └── umap_y_vrai_dash.npy          # Classes réelles rattachées aux points 2D
+```
 
 ---
 
-## 3. Le Dashboard Dash & Cartographie de l'Espace Latent
+## 2. Le Pipeline Data & IA (Backend)
 
-L'aboutissement du projet est accessible via une interface web propulsée par `Dash`. La pièce maîtresse de ce Dashboard est sa cartographie 2D générée via l'algorithme de réduction de dimensionnalité **UMAP**.
+Nous avons mis en place un processus d'Extraction et de Transformation simple pour alimenter le modèle.
 
-### Le "Twist" Technique de la Cartographie
-Généralement, l'UMAP est utilisé pour projeter directement les vecteurs asymétriques issus de BERT. Le problème de cette approche classique est qu'elle regroupe les textes *par thème sémantique* (ex: "les livres de magie ensemble", "les essais politiques ensemble"), indépendamment de l'avis du lecteur.
+### 2.1. Préparation et Nettoyage des Données
 
-Pour contourner cela, **notre UMAP ne projette pas la donnée d'entrée**. 
-Nous faisons glisser les requêtes au travers du réseau neuronal, et nous extrayons matriciellement les activations générées par la **dernière couche cachée du MLP**. 
+Le jeu de données initial contient environ 3 millions de lignes. Le script utilitaire `fouille_donnees.py` applique plusieurs traitements :
 
-### Pourquoi faire ça ?
-Cette dernière couche de 64 dimensions représente l'**Espace Latent** : il s'agit littéralement des "croyances" internes de notre algorithme juste avant de donner sa note. Voir cet espace latent à travers UMAP permet de prouver visuellement que notre modèle a réussi à "tordre" l'espace sémantique originel de BERT pour établir une frontière de décision claire et isoler géométriquement les Textes Positifs (Intéressants) des Textes Négatifs (Inintéressants).
+* **Nettoyage :** Suppression des entrées présentant des valeurs manquantes (`NaN`) dans le texte de l'avis ou dans le score.
+* **Seuillage :** Conservation des livres ayant au moins 10 avis pour assurer un minimum de fiabilité.
+* **Équilibrage :** Afin de prévenir un biais sur des classes majoritaires, un sous-échantillonnage strict a été imposé (extraction exacte de 100 000 avis par note, de 1.0 à 5.0).
+* Le jeu de données final, exploité pour le modèle, s'élève à **500 000 enregistrements**.
+
+### 2.2. Mode CLI : Exécution Modulaire (`main.py`)
+
+Les opérations sont pilotées en ligne de commande (CLI) via le module `argparse`.
+
+* `--pipeline` : Paramètre de déclenchement du cycle de traitement complet. Engage la vectorisation sous BERT, la persistance matricielle des embeddings, l'entraînement du réseau neuronal et l'extraction finale de la projection UMAP.
+* `--train` : Lance uniquement l'entraînement du modèle MLP. Ce paramètre court-circuite le process d'encodage BERT en récupérant directement les matrices de features pré-calculées (`.npy`).
+* `--project` : Utilise le réseau neuronal chargé pour recalculer les coordonnées UMAP destinées au Dashboard interactif.
+* `--predict [TEXTE]` : Lance le modèle sauvegardé pour évaluer instantanément une chaîne de caractères et retourner sa prédiction de score dans le terminal.
+
+```bash
+# Exemple de commande d'Inférence Terminale :
+python main.py --predict "The pacing of this novel is undeniably slow, yet intellectually rewarding."
+```
+
+### 2.3. Logs d'Exécution et Accélération Matérielle
+
+L'avancement du calcul des vecteurs et de l'entraînement peut être surveillé en direct dans la console.
+
+**Moteur Tensoriel NLP (BERT) :**
+```text
+Encodage BERT:  20%|███████████▏ | 396/1954 [11:01<42:58,  1.65s/batch]
+```
+
+**Apprentissage (MLP) :**
+```text
+Epochs completed:  50%| ████████████████████████████████████▌                                      100/200 [02:03]completed  100  /  200 epochs 
+```
+
+![Capture du terminal](assets/cli1.png)
+
+![Capture du terminal](assets/cli2.png)
+
+![Capture du terminal](assets/cli3.png)
 
 ---
 
-## 4. Installation et Utilisation
+## 3. Benchmark & Modélisation
 
-L'architecture s'installe et s'exécute aisément. Recommandation : utiliser un environnement virtuel (Python 3.9+).
+### 3.1. Approche Technique : Encodage et Réseau Neuronal
 
-**1. Installation des dépendances**
+La modélisation finale repose sur une combinaison d'embeddings de transformateurs et de réseaux simples.
+
+**L'encodage :** Nous utilisons l'outil `all-mpnet-base-v2` (`sentence-transformers`) pour distiller un vecteur sémantique de **768 dimensions**. Nous y concaténons une information fondamentale : le genre du livre, appliqué via un encodage One-Hot sur **11 dimensions**. Le modèle reçoit donc en entrée **779 features**.
+
+**Le Modèle :** Nous avons choisi un Perceptron Multicouche (MLP). Au lieu d'utiliser un modèle surdimensionné difficile à contrôler, notre réseau est composé de deux couches cachées concises : `(64, 64)`. Cette légèreté limite significativement le nombre de paramètres et les risques de mémorisation brute.
+
+### 3.2. Gestion de l'Overfitting
+
+Travailler sur le langage naturel avec un grand nombre de dimensions génère inévitablement de l'overfitting. Le réseau aura tendance, au fil des epochs, à retenir par cœur les données de construction du texte pour minimiser mécaniquement sa perte, au détriment de sa capacité de généralisation.
+
+Nous avons répondu à cela avec pragmatisme : un processus strict d'**Early Stopping** a été codé. L'entraînement est itératif (via `.partial_fit()`) et traque une perte sur des données laissées hors-chantier (Validation Loss). Grâce à une patience de 10 époques (le réseau s'arrête de s'entraîner si la `val_loss` stagne pendant 10 itérations), nous garantissons que le modèle sauvegardé préserve ses capacités de généralisation.
+
+---
+
+## 4. Le Dashboard Interactif (Web UI)
+
+Pour analyser les résultats, un dashboard Dashboard `app.py` construit avec `Dash` permet de visualiser les outputs sans passer par le terminal.
+
+### 1. Interface de Test Dynamique
+Un simple champ texte autorise l'utilisateur à injecter une critique libre. Le passage par le conduit BERT puis l'arborescence MLP pré-entraînée génèrent l'estimation du score sur le champ.
+
+![Capture Interface de Test](assets/test.png)
+
+### 2. Cartographie Sémantique UMAP Interactive
+
+La pièce maîtresse du projet est notre exploitation de la réduction cartographique dimensionnelle UMAP.
+
+Traditionnellement, appliquer un algorithme UMAP sur des données BERT brutes ne fait que structurer les points selon le thème du texte (regroupant les mots par contexte), sans aucun regard sur le sentiment. 
+Pour dépasser cette limite, **notre UMAP ne projette pas l'entrée, mais l'Espace Latent du modèle**. Plus techniquement, l'échantillon passe par notre MLP et nous extrayons manuellement les activations associées à la dernière couche cachée (de dimension 64). L'algorithme UMAP est alors appliqué sur cette matrice précise.
+
+Visuellement, cela permet de mesurer comment l'IA a réorganisé les dimensions pour créer une frontière de décision non-linéaire qui sépare de façon cohérente les sentiments (exprimés en notes de 1 à 5).
+
+![Capture Cartographie UMAP](assets/umap.png)
+
+L'interface interagit au survol en affichant l'extrait d'avis unique lié à chaque nœud d'observation.
+
+![Capture Hover Text UMAP](assets/perf2.png)
+
+### 3. Rapport de Forme (Metrics)
+Ce panneau dresse formellement le bilan analytique des performances évaluées sur un ensemble de **Test**. En évitant rigoureusement l'overfitting, notre évaluation indépendante retourne un **score F1 robuste d'environ 0.87**.
+
+![Capture Rapport Performance](assets/perf.png)
+
+---
+
+## 5. Prérequis Système et Déploiement
+
+### 5.1. Avertissement 
+
+> **⚠️ Avertissement (Git LFS) :** 
+> Le fichier de travail initial `books_rating_500k_filtre.csv` pèse lourd et ne siège pas sur ce dépôt. Les fonctionnalités de Dashboard interactifs (incluant les calculs Numpy `.npy` de l'UMAP) sont fonctionnelles de base. Toutefois, pour activer la visualisation complète du texte au survol (Hover Texts) dans le Dashboard, n'oubliez pas d'insérer le fichier CSV complet dans le répertoire local `data/`.
+
+- **Prérequis Standard :** L'usage d'une distribution Python `3.9` ou supérieure est recommandé au sein d'un environnement virtuel.
+
+### 5.2. Installation et Lancement Rapide
+
+1. Installez les packages d'inférence (réseau allégé) :
 ```bash
 pip install -r requirements.txt
 ```
 
-**2. Entraînement du réseau de neurones**
-Récupère les représentations pré-calculées et entraîne le MLP avec suivi de la Validation Loss :
+2. (Optionnel) Relancez l'entraînement localement avec suivi de la Validation Loss :
 ```bash
 python main.py --train
 ```
 
-**3. Génération des données pour l'interface**
-Calcule les inférences spatiales et l'extraction de l'Espace Latent UMAP :
+3. (Optionnel) Générez l'extraction de l'Espace Latent UMAP :
 ```bash
 python main.py --project
 ```
 
-**4. Lancement du Dashboard Web**
-Démarre le serveur Analytics en local :
+4. Initiez le serveur Dash :
 ```bash
 python app.py
 ```
-*Le tableau de bord interactif sera alors disponible sur votre navigateur via `http://127.0.0.1:8050/`.*
+*Le portail applicatif sera accessible via votre port localhost `http://127.0.0.1:8050/`.*
