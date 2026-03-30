@@ -29,6 +29,8 @@ Projet-S4/
 ├── composants/                   # Scripts et modules métiers
 │   └── ia_notes.py               # Cœur de l'IA : pipeline NLP, MLP, et extraction de l'Espace Latent
 └── data/                         # Modèles, caches et données pré-calculées
+    ├── Books_rating.csv              # Archive brute des textes Amazon (2.8 Go - source)
+    ├── books_data.csv                # Archive brute des métadonnées (181 Mo - titres & genres)
     ├── books_rating_500k_filtre.csv  # Dataset source nettoyé (non tracké via Git LFS)
     ├── donnees_dashboard_umap.csv    # Coordonnées finales et notes pour la cartographie Dash
     ├── embeddings.npy                # Cache des vecteurs sémantiques BERT (768D)
