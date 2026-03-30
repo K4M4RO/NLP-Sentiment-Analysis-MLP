@@ -11,6 +11,7 @@ env/
 # 2. EXCEPTIONS : Les petits fichiers vitaux pour l'onglet 2 (Cartographie UMAP)
 !data/umap_coords_dash.npy
 !data/umap_y_vrai_dash.npy
+!data/donnees_dashboard_umap.csv
 
 # Note : Le fichier ia_notes_sauvegarde.joblib (2 Mo) passera automatiquement 
 # car on n'a pas bloqué les .joblib. C'est parfait car il est indispensable 
