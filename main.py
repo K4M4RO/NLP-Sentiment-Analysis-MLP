@@ -11,6 +11,7 @@ def main():
     parser.add_argument("--train", action="store_true", help="Charge les embeddings et lance la recherche du meilleur modèle.")
     parser.add_argument("--project", action="store_true", help="Charge les embeddings et recalcule uniquement les projections ACP et UMAP.")
     parser.add_argument("--predict", type=str, metavar='"TEXTE"', help="Prédit le score d'une phrase passée entre guillemets.")
+    parser.add_argument("--genre", type=str, default=None, help="Genre du livre pour la prédiction (ex: Fiction, Religion). Par défaut : Inconnu.")
     
     # Si aucun argument n'est fourni, on affiche l'aide de argparse et on sort.
     if len(sys.argv) == 1:
@@ -57,6 +58,7 @@ def main():
         print(f"\n{C.JAUNE}Chargement du CSV (pour cartographier les couleurs des notes)...{C.RESET}")
         predicteur.charger_data()
         predicteur.charger_embeddings()
+        predicteur.charger_cerveau()
         predicteur.calculer_projections()
         print(f"\n{C.VERT}🎉 Projections calculées et sauvegardées avec succès !{C.RESET}")
         
@@ -65,7 +67,8 @@ def main():
         print(f"\n{C.VERT} Lancement du mode Prédiction...{C.RESET}")
         predicteur.charger_cerveau()
         try:
-            score = predicteur.predire_score(texte)
+            genre = args.genre
+            score = predicteur.predire_score(texte, genre=genre)
             is_interessant = score > 2.5
             texte_resultat = "Intéressant" if is_interessant else "Inintéressant"
             couleur = C.VERT if is_interessant else C.ROUGE
