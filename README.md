@@ -166,7 +166,7 @@ Ce panneau dresse formellement le bilan analytique des performances évaluées s
 ### 5.1. Avertissement 
 
 > **⚠️ Avertissement (Git LFS) :** 
-> Le fichier de travail initial `books_rating_500k_filtre.csv` pèse lourd et ne siège pas sur ce dépôt. Les fonctionnalités de Dashboard interactifs (incluant les calculs Numpy `.npy` de l'UMAP) sont fonctionnelles de base. Toutefois, pour activer la visualisation complète du texte au survol (Hover Texts) dans le Dashboard, n'oubliez pas d'insérer le fichier CSV complet dans le répertoire local `data/`.
+> Le fichier de travail initial `books_rating_500k_filtre.csv` pèse lourd et ne siège pas sur ce dépôt. Les fonctionnalités de Dashboard interactifs (incluant les calculs Numpy `.npy` de l'UMAP) sont fonctionnelles de base.
 
 - **Prérequis Standard :** L'usage d'une distribution Python `3.9` ou supérieure est recommandé au sein d'un environnement virtuel.
 
