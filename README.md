@@ -172,7 +172,25 @@ Ce panneau dresse formellement le bilan analytique des performances évaluées s
 
 ### 5.2. Installation et Lancement Rapide
 
-1. Installez les packages d'inférence (réseau allégé) :
+0. Récupération du projet
+```bash
+git clone https://github.com/K4M4RO/NLP-Sentiment-Analysis-MLP
+```
+```bash
+cd NLP-Sentiment-Analysis-MLP
+```
+Environnement virtuel (Recommandé):
+```bash
+# Créer l'environnement
+python -m venv venv
+
+# Activer l'environnement (Windows)
+venv\Scripts\activate
+# Activer l'environnement (Mac/Linux)
+source venv/bin/activate
+```
+
+2. Installez les packages d'inférence (réseau allégé) :
 ```bash
 pip install -r requirements.txt
 ```
